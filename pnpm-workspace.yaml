@@ -1,3 +1,12 @@
 packages:
   - packages/*
   - apps/*
+
+executionEnv:
+  nodeVersion: 24.6.0
+
+minimumReleaseAgeExclude:
+  - electron-to-chromium@1.5.393
+
+allowBuilds:
+  esbuild: true

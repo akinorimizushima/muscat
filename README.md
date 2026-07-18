@@ -45,10 +45,16 @@ editor.dispose();
 
 ## Development
 
-Node.js `24.6.0` and pnpm `10.15.0` are pinned in `package.json`. pnpm automatically uses the configured Node.js version for lifecycle scripts.
+Development tools are managed with [mise](https://mise.jdx.dev/). Install mise, then set up the pinned tools and project dependencies:
 
 ```sh
+mise install
 pnpm install
+```
+
+Run the development commands inside a mise-activated shell, or prefix them with `mise exec --`:
+
+```sh
 pnpm dev
 pnpm typecheck
 pnpm test
