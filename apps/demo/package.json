@@ -1,0 +1,18 @@
+{
+  "name": "@muscat/demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@muscat/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^7.1.3"
+  }
+}

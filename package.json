@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "dev": "pnpm --filter @muscat/demo dev",
     "test": "pnpm -r test",
     "test:browser": "pnpm --filter @muscat/core test:browser",
     "test:coverage": "pnpm --filter @muscat/core test:coverage",
