@@ -13,8 +13,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "pnpm test:unit && pnpm test:browser",
     "test:browser": "playwright test -c test/browser/playwright.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts",
     "test:coverage": "rimraf coverage && vitest run --config vitest.config.ts --coverage && mkdir -p coverage/raw && cp coverage/unit/coverage-final.json coverage/raw/unit.json && VITE_COVERAGE=true playwright test -c test/browser/playwright.config.ts && nyc merge coverage/raw coverage/coverage.json && nyc report --temp-dir coverage --report-dir coverage/report --reporter=text --reporter=html --reporter=lcov",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
