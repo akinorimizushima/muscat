@@ -8,6 +8,7 @@ body {
   margin-top: 1rem;
   min-height: 240px;
   padding: 1rem;
+  position: relative;
 }
 
 #canvas article {
@@ -15,4 +16,7 @@ body {
   border: 1px solid #777;
   height: 80px;
   width: 120px;
+  position: absolute;
+  touch-action: none;
+  user-select: none;
 }

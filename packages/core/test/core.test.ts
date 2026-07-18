@@ -1,4 +1,4 @@
-import { commands, createDocument, createEditor, type EditorNode } from "../src/index.js";
+import { commands, createDocument, createEditor, getDragGeometry, startDragSession, type EditorNode } from "../src/index.js";
 import { describe, expect, it } from "vitest";
 
 const box = (id: string): Omit<EditorNode, "parentId" | "children"> => ({
@@ -45,5 +45,18 @@ describe("headless editor", () => {
   it("rejects invalid moves through can", () => {
     const editor = createEditor();
     expect(editor.can(commands.moveNode({ nodeId: "root", parentId: "root" }))).toBe(false);
+  });
+
+  it("calculates drag previews without mutating the document", () => {
+    const geometry = { x: 10, y: 20, width: 100, height: 80, rotation: 5 };
+    const session = startDragSession("a", { x: 50, y: 70 }, geometry);
+    expect(getDragGeometry(session, { x: 85, y: 100 })).toEqual({
+      x: 45,
+      y: 50,
+      width: 100,
+      height: 80,
+      rotation: 5,
+    });
+    expect(geometry).toEqual({ x: 10, y: 20, width: 100, height: 80, rotation: 5 });
   });
 });

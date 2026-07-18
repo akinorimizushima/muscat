@@ -45,8 +45,9 @@ h2 { font-size: 0.8rem; letter-spacing: 0.08em; margin: 0 0 1rem; text-transform
 
 .stage-shell { padding: 1.5rem; }
 .stage-heading { display: flex; font-size: 0.8rem; justify-content: space-between; letter-spacing: 0.06em; margin-bottom: 0.75rem; text-transform: uppercase; }
-.stage { align-content: start; background: #fffdf7; border: 1px solid #c9c4b8; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); min-height: calc(100vh - 165px); padding: 1.5rem; }
-.canvas-node { background: #e7d7e0; border: 1px solid #713155; border-radius: 12px; display: flex; flex-direction: column; height: 120px; justify-content: space-between; padding: 1rem; }
+.stage { background: #fffdf7; border: 1px solid #c9c4b8; min-height: calc(100vh - 165px); overflow: hidden; position: relative; }
+.canvas-node { background: #e7d7e0; border: 1px solid #713155; border-radius: 12px; cursor: grab; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; position: absolute; touch-action: none; user-select: none; }
+.canvas-node:active { cursor: grabbing; }
 .canvas-node span { font-family: Georgia, serif; font-size: 1.4rem; }
 .canvas-node small { color: #713155; text-transform: uppercase; }
 pre { font-size: 0.7rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
