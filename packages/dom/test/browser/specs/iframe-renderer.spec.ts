@@ -18,7 +18,7 @@ test("keeps the selection overlay aligned when an iframe parent scrolls", async 
 
 test("moves an iframe element and its selection overlay during drag", async ({ page }) => {
   await page.goto("/");
-  const target = page.frameLocator("iframe").getByText("Scrollable target");
+  const target = page.frameLocator("iframe").locator("h2");
   await target.click();
   await expect(target).toHaveCSS("cursor", "move");
   const before = await target.boundingBox();
@@ -35,4 +35,21 @@ test("moves an iframe element and its selection overlay during drag", async ({ p
   expect(overlay?.x).toBeCloseTo(preview?.x ?? 0, 0);
   expect(overlay?.y).toBeCloseTo(preview?.y ?? 0, 0);
   await page.mouse.up();
+});
+
+test("edits leaf text and reports the text node change", async ({ page }) => {
+  await page.goto("/");
+  const target = page.frameLocator("iframe").locator("h2");
+  await target.dblclick();
+  await expect(target).toHaveAttribute("contenteditable", "plaintext-only");
+  await expect(target).toHaveCSS("cursor", "text");
+
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await target.pressSequentially("Updated heading");
+  await target.press("Enter");
+
+  await expect(target).toHaveText("Updated heading");
+  await expect(target).not.toHaveAttribute("contenteditable", /.*/);
+  await expect(page.locator("#app")).toHaveAttribute("data-changed-content", "Updated heading");
+  await expect(page.locator("#app")).toHaveAttribute("data-changed-node-id", "node-3");
 });

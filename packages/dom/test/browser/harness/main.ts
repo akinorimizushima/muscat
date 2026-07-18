@@ -38,5 +38,9 @@ const renderer = createIframeRenderer(iframe, {
     if (overlay) overlay.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
   },
   onViewportChange: updateOverlay,
+  onTextChange(nodeId, content) {
+    app.dataset.changedNodeId = nodeId;
+    app.dataset.changedContent = content;
+  },
 });
 renderer.render(imported.srcdoc);

@@ -90,6 +90,16 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
         },
       };
     }
+    case "node.setContent": {
+      const node = requiredNode(document, command.nodeId);
+      nodes[node.id] = { ...node, content: command.content };
+      return {
+        document: { ...document, nodes },
+        inverse: {
+          commands: [{ type: "node.setContent", nodeId: node.id, content: node.content ?? "" }],
+        },
+      };
+    }
     case "node.remove": {
       const node = requiredNode(document, command.nodeId);
       if (node.parentId === null) throw new CommandError("The document root cannot be removed");

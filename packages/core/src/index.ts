@@ -1,4 +1,4 @@
-export { commands, type AddNodeCommand, type Command, type MoveNodeCommand, type RemoveNodeCommand, type SetNodeAttributesCommand } from "./commands.js";
+export { commands, type AddNodeCommand, type Command, type MoveNodeCommand, type RemoveNodeCommand, type SetNodeAttributesCommand, type SetNodeContentCommand } from "./commands.js";
 export { createEditor, type CreateEditorOptions, type Editor, type EditorSnapshot } from "./editor.js";
 export { getDragGeometry, startDragSession, type DragSession, type Point } from "./drag.js";
 export { type InteractionController, type InteractionMode } from "./interaction.js";

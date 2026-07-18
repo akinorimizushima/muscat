@@ -28,6 +28,12 @@ export interface SetNodeAttributesCommand {
   readonly attributes: Readonly<Record<string, string>>;
 }
 
+export interface SetNodeContentCommand {
+  readonly type: "node.setContent";
+  readonly nodeId: NodeId;
+  readonly content: string;
+}
+
 export interface RestoreSubtreeCommand {
   readonly type: "node.restoreSubtree";
   readonly parentId: NodeId;
@@ -40,6 +46,7 @@ export type Command =
   | AddNodeCommand
   | MoveNodeCommand
   | SetNodeAttributesCommand
+  | SetNodeContentCommand
   | RemoveNodeCommand
   | RestoreSubtreeCommand;
 
@@ -55,5 +62,8 @@ export const commands = {
   },
   setNodeAttributes(command: Omit<SetNodeAttributesCommand, "type">): SetNodeAttributesCommand {
     return { type: "node.setAttributes", ...command };
+  },
+  setNodeContent(command: Omit<SetNodeContentCommand, "type">): SetNodeContentCommand {
+    return { type: "node.setContent", ...command };
   },
 };

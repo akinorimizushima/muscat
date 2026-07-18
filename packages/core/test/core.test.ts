@@ -75,6 +75,20 @@ describe("headless editor", () => {
     expect(editor.getSnapshot().document.nodes.a?.attributes.class).toBe("selected");
   });
 
+  it("updates text content as an undoable command", () => {
+    const editor = createEditor();
+    editor.dispatch(commands.addNode({
+      parentId: "root",
+      node: { ...box("text"), type: "#text", content: "Before" },
+    }));
+    editor.dispatch(commands.setNodeContent({ nodeId: "text", content: "After" }));
+    expect(editor.getSnapshot().document.nodes.text?.content).toBe("After");
+    editor.undo();
+    expect(editor.getSnapshot().document.nodes.text?.content).toBe("Before");
+    editor.redo();
+    expect(editor.getSnapshot().document.nodes.text?.content).toBe("After");
+  });
+
   it("calculates drag previews without mutating the document", () => {
     const geometry = { x: 10, y: 20, width: 100, height: 80, rotation: 5 };
     const session = startDragSession("a", { x: 50, y: 70 }, geometry);

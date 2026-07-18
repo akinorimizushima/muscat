@@ -155,6 +155,9 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
     onMove(nodeId, attributes) {
       editor.dispatch(commands.setNodeAttributes({ nodeId, attributes }));
     },
+    onTextChange(nodeId, content) {
+      editor.dispatch(commands.setNodeContent({ nodeId, content }));
+    },
   });
   iframeRenderer.render(importedPage.srcdoc);
 }
