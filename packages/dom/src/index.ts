@@ -129,6 +129,7 @@ export interface IframeRendererOptions {
 export interface IframeRenderer {
   render(srcdoc: string): void;
   getElementRect(nodeId: string): DOMRect | undefined;
+  previewElementSize(nodeId: string, width: number, height: number): void;
   syncNodes(nodes: Readonly<Record<string, EditorNode>>): void;
   dispose(): void;
 }
@@ -296,6 +297,15 @@ export function createIframeRenderer(
         `[data-muscat-node-id="${CSS.escape(nodeId)}"]`,
       );
       return element?.getBoundingClientRect();
+    },
+    previewElementSize(nodeId, width, height) {
+      const element = iframe.contentDocument?.querySelector<HTMLElement>(
+        `[data-muscat-node-id="${CSS.escape(nodeId)}"]`,
+      );
+      if (!element) return;
+      element.style.boxSizing = "border-box";
+      element.style.width = `${width}px`;
+      element.style.height = `${height}px`;
     },
     syncNodes(nodes) {
       const frameDocument = iframe.contentDocument;

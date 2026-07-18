@@ -54,7 +54,12 @@ h2 { font-size: 0.8rem; letter-spacing: 0.08em; margin: 0 0 1rem; text-transform
 .node-content > :first-child { max-width: 100%; }
 .canvas-node > .node-content { font-family: Georgia, serif; font-size: 1rem; }
 .selection-overlay { border: 2px solid #147d68; pointer-events: none; position: absolute; z-index: 100; }
-.selection-overlay span { background: #147d68; color: white; font: 600 11px/1.5 Inter, sans-serif; left: -2px; padding: 2px 6px; position: absolute; text-transform: uppercase; top: -23px; }
+.selection-label { background: #147d68; color: white; font: 600 11px/1.5 Inter, sans-serif; left: -2px; padding: 2px 6px; position: absolute; text-transform: uppercase; top: -23px; }
+.resize-handle { background: #fffdf7; border: 2px solid #147d68; border-radius: 2px; height: 12px; padding: 0; pointer-events: auto; position: absolute; touch-action: none; width: 12px; }
+.resize-handle--north-west { cursor: nwse-resize; left: -7px; top: -7px; }
+.resize-handle--north-east { cursor: nesw-resize; right: -7px; top: -7px; }
+.resize-handle--south-east { bottom: -7px; cursor: nwse-resize; right: -7px; }
+.resize-handle--south-west { bottom: -7px; cursor: nesw-resize; left: -7px; }
 pre { font-size: 0.7rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 
 dialog { border: 1px solid #272219; border-radius: 8px; padding: 0; width: min(680px, calc(100vw - 2rem)); }
