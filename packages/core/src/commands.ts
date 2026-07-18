@@ -1,0 +1,49 @@
+import type { EditorNode, Geometry, NodeId } from "./model.js";
+
+export interface AddNodeCommand {
+  readonly type: "node.add";
+  readonly parentId: NodeId;
+  readonly index?: number;
+  readonly node: Omit<EditorNode, "parentId" | "children"> & {
+    readonly children?: readonly NodeId[];
+  };
+}
+
+export interface MoveNodeCommand {
+  readonly type: "node.move";
+  readonly nodeId: NodeId;
+  readonly parentId: NodeId;
+  readonly index?: number;
+  readonly geometry?: Geometry;
+}
+
+export interface RemoveNodeCommand {
+  readonly type: "node.remove";
+  readonly nodeId: NodeId;
+}
+
+export interface RestoreSubtreeCommand {
+  readonly type: "node.restoreSubtree";
+  readonly parentId: NodeId;
+  readonly index: number;
+  readonly nodes: Readonly<Record<NodeId, EditorNode>>;
+  readonly rootId: NodeId;
+}
+
+export type Command =
+  | AddNodeCommand
+  | MoveNodeCommand
+  | RemoveNodeCommand
+  | RestoreSubtreeCommand;
+
+export const commands = {
+  addNode(command: Omit<AddNodeCommand, "type">): AddNodeCommand {
+    return { type: "node.add", ...command };
+  },
+  moveNode(command: Omit<MoveNodeCommand, "type">): MoveNodeCommand {
+    return { type: "node.move", ...command };
+  },
+  removeNode(command: Omit<RemoveNodeCommand, "type">): RemoveNodeCommand {
+    return { type: "node.remove", ...command };
+  },
+};
