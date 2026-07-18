@@ -308,6 +308,26 @@ document.querySelector("[data-action='confirm-import']")?.addEventListener("clic
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());
+document.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.isComposing || event.altKey) return;
+  const target = event.target;
+  if (
+    target instanceof Element &&
+    (target.closest("input, textarea, select") ||
+      (target instanceof HTMLElement && target.isContentEditable))
+  )
+    return;
+  if (!event.metaKey && !event.ctrlKey) return;
+
+  const key = event.key.toLowerCase();
+  const undo = key === "z" && !event.shiftKey;
+  const redo = (key === "z" && event.shiftKey) || (key === "y" && event.ctrlKey);
+  if (!undo && !redo) return;
+
+  event.preventDefault();
+  if (undo) editor.undo();
+  else editor.redo();
+});
 canvas.addEventListener("pointerdown", (event) => {
   const resizeHandle = (event.target as Element).closest<HTMLElement>("[data-resize-handle]");
   const resizeNodeId = resizeHandle?.dataset.nodeId;
