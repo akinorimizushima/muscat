@@ -6,13 +6,24 @@ test("keeps the selection overlay aligned when an iframe parent scrolls", async 
   const target = frame.getByText("Scrollable target");
   await target.click();
   const overlay = page.locator("[data-overlay]");
-  await frame.locator("#scroller").evaluate((element) => { element.scrollTop = 0; });
-  await expect.poll(async () => await frame.locator("#scroller").evaluate((element) => element.scrollTop)).toBe(0);
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await frame.locator("#scroller").evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect
+    .poll(async () => await frame.locator("#scroller").evaluate((element) => element.scrollTop))
+    .toBe(0);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   const before = await overlay.boundingBox();
   if (!before) throw new Error("Selection overlay is not visible");
 
-  await frame.locator("#scroller").evaluate((element) => { element.scrollTop = 120; });
+  await frame.locator("#scroller").evaluate((element) => {
+    element.scrollTop = 120;
+  });
   await expect.poll(async () => (await overlay.boundingBox())?.y).toBeCloseTo(before.y - 120, 0);
 });
 

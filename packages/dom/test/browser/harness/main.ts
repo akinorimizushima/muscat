@@ -11,13 +11,19 @@ const canvas = document.querySelector<HTMLElement>("#canvas");
 const iframe = document.querySelector<HTMLIFrameElement>("iframe");
 if (!canvas || !iframe) throw new Error("Missing harness elements");
 
-const imported = importHtml(`
+const imported = importHtml(
+  `
   <div id="scroller" style="height:180px;overflow:auto">
     <div style="height:240px"></div>
     <h2>Scrollable target</h2>
     <div style="height:240px"></div>
   </div>
-`, (() => { let id = 0; return () => `node-${id++}`; })());
+`,
+  (() => {
+    let id = 0;
+    return () => `node-${id++}`;
+  })(),
+);
 let selectedId: string | undefined;
 
 function updateOverlay(): void {
@@ -32,7 +38,10 @@ function updateOverlay(): void {
 }
 
 const renderer = createIframeRenderer(iframe, {
-  onSelect(nodeId) { selectedId = nodeId; updateOverlay(); },
+  onSelect(nodeId) {
+    selectedId = nodeId;
+    updateOverlay();
+  },
   onDragPreview(_nodeId, deltaX, deltaY) {
     const overlay = canvas.querySelector<HTMLElement>("[data-overlay]");
     if (overlay) overlay.style.transform = `translate(${deltaX}px, ${deltaY}px)`;

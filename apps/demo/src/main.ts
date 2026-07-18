@@ -1,4 +1,16 @@
-import { commands, createEditor, getDragGeometry, getResizeGeometry, startDragSession, startResizeSession, type DragSession, type EditorNode, type Geometry, type ResizeHandle, type ResizeSession } from "@muscat/core";
+import {
+  commands,
+  createEditor,
+  getDragGeometry,
+  getResizeGeometry,
+  startDragSession,
+  startResizeSession,
+  type DragSession,
+  type EditorNode,
+  type Geometry,
+  type ResizeHandle,
+  type ResizeSession,
+} from "@muscat/core";
 import { createDomNode, createIframeRenderer, importHtml, type IframeRenderer } from "@muscat/dom";
 import "./style.css";
 
@@ -96,7 +108,10 @@ function previewImportedResize(geometry: Geometry): void {
   overlay.style.height = `${geometry.height}px`;
 }
 
-function createNodeElement(node: EditorNode, nodes: Readonly<Record<string, EditorNode>>): HTMLElement {
+function createNodeElement(
+  node: EditorNode,
+  nodes: Readonly<Record<string, EditorNode>>,
+): HTMLElement {
   const element = document.createElement("div");
   element.className = "canvas-node";
   element.dataset.nodeId = node.id;
@@ -104,18 +119,23 @@ function createNodeElement(node: EditorNode, nodes: Readonly<Record<string, Edit
   const content = document.createElement("div");
   content.className = "node-content";
   if (node.children.length > 0 || Object.keys(node.attributes).length > 0) {
-    content.append(createDomNode(node, nodes, {
-      onElement(importedNode, importedElement) {
-        importedElement.dataset.editorNodeId = importedNode.id;
-      },
-    }));
+    content.append(
+      createDomNode(node, nodes, {
+        onElement(importedNode, importedElement) {
+          importedElement.dataset.editorNodeId = importedNode.id;
+        },
+      }),
+    );
   } else {
     element.classList.add("is-placeholder");
     content.dataset.editorNodeId = node.id;
     content.textContent = node.content ?? node.id;
   }
   element.append(content);
-  const geometry = (dragSession?.nodeId === node.id || resizeSession?.nodeId === node.id) && previewGeometry ? previewGeometry : node.geometry;
+  const geometry =
+    (dragSession?.nodeId === node.id || resizeSession?.nodeId === node.id) && previewGeometry
+      ? previewGeometry
+      : node.geometry;
   if (geometry) {
     element.style.left = `${geometry.x}px`;
     element.style.top = `${geometry.y}px`;
@@ -132,19 +152,24 @@ function render(): void {
     .map((id) => snapshot.document.nodes[id])
     .filter((node): node is EditorNode => node !== undefined);
 
-  const hasImportedPage = importedPage?.topLevelIds.some((id) => snapshot.document.nodes[id]) ?? false;
+  const hasImportedPage =
+    importedPage?.topLevelIds.some((id) => snapshot.document.nodes[id]) ?? false;
   if (hasImportedPage) {
     renderIframe(snapshot.document.nodes);
   } else {
     iframeRenderer?.dispose();
     iframeRenderer = undefined;
-    canvas.replaceChildren(...nodes.map((node) => createNodeElement(node, snapshot.document.nodes)));
+    canvas.replaceChildren(
+      ...nodes.map((node) => createNodeElement(node, snapshot.document.nodes)),
+    );
   }
-  tree.replaceChildren(...nodes.map((node) => {
-    const item = document.createElement("li");
-    item.textContent = `${node.content ?? node.id} · ${node.layout}`;
-    return item;
-  }));
+  tree.replaceChildren(
+    ...nodes.map((node) => {
+      const item = document.createElement("li");
+      item.textContent = `${node.content ?? node.id} · ${node.layout}`;
+      return item;
+    }),
+  );
   status.textContent = `${nodes.length} element${nodes.length === 1 ? "" : "s"}`;
   snapshotOutput.textContent = JSON.stringify(snapshot, null, 2);
 
@@ -188,7 +213,8 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
 }
 
 function updateSelectionOverlay(): void {
-  if (resizeSession && resizingImportedElement && canvas.querySelector("[data-selection-overlay]")) return;
+  if (resizeSession && resizingImportedElement && canvas.querySelector("[data-selection-overlay]"))
+    return;
   canvas.querySelector("[data-selection-overlay]")?.remove();
   if (!selectedNodeId) return;
   const node = editor.getSnapshot().document.nodes[selectedNodeId];
@@ -198,17 +224,19 @@ function updateSelectionOverlay(): void {
   const frame = canvas.querySelector<HTMLIFrameElement>(".canvas-frame");
   const frameRect = frame?.getBoundingClientRect();
   const iframeElementRect = iframeRenderer?.getElementRect(selectedNodeId);
-  const selected = node.geometry && !iframeRenderer
-    ? canvas.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(selectedNodeId)}"]`)
-    : canvas.querySelector<HTMLElement>(`[data-editor-node-id="${CSS.escape(selectedNodeId)}"]`);
-  const selectedRect = iframeElementRect && frameRect
-    ? new DOMRect(
-        frameRect.left + iframeElementRect.left,
-        frameRect.top + iframeElementRect.top,
-        iframeElementRect.width,
-        iframeElementRect.height,
-      )
-    : selected?.getBoundingClientRect();
+  const selected =
+    node.geometry && !iframeRenderer
+      ? canvas.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(selectedNodeId)}"]`)
+      : canvas.querySelector<HTMLElement>(`[data-editor-node-id="${CSS.escape(selectedNodeId)}"]`);
+  const selectedRect =
+    iframeElementRect && frameRect
+      ? new DOMRect(
+          frameRect.left + iframeElementRect.left,
+          frameRect.top + iframeElementRect.top,
+          iframeElementRect.width,
+          iframeElementRect.height,
+        )
+      : selected?.getBoundingClientRect();
   if (!selectedRect) return;
   const overlay = document.createElement("div");
   overlay.className = "selection-overlay";
@@ -222,7 +250,12 @@ function updateSelectionOverlay(): void {
   label.textContent = node.type;
   overlay.append(label);
   if (node.type !== "#text" && node.type !== "root") {
-    const handles: readonly ResizeHandle[] = ["north-west", "north-east", "south-east", "south-west"];
+    const handles: readonly ResizeHandle[] = [
+      "north-west",
+      "north-east",
+      "south-east",
+      "south-west",
+    ];
     for (const handleName of handles) {
       const handle = document.createElement("button");
       handle.type = "button";
@@ -238,17 +271,19 @@ function updateSelectionOverlay(): void {
 
 document.querySelector("[data-action='add']")?.addEventListener("click", () => {
   const number = nextNodeNumber++;
-  editor.dispatch(commands.addNode({
-    parentId: "root",
-    node: {
-      id: `element-${number}`,
-      type: "section",
-      layout: "free",
-      geometry: { x: 24 * number, y: 24 * number, width: 220, height: 120 },
-      attributes: { class: "demo-element" },
-      content: `Element ${number}`,
-    },
-  }));
+  editor.dispatch(
+    commands.addNode({
+      parentId: "root",
+      node: {
+        id: `element-${number}`,
+        type: "section",
+        layout: "free",
+        geometry: { x: 24 * number, y: 24 * number, width: 220, height: 120 },
+        attributes: { class: "demo-element" },
+        content: `Element ${number}`,
+      },
+    }),
+  );
 });
 const importDialog = requiredElement<HTMLDialogElement>("[data-import-dialog]");
 const htmlSource = requiredElement<HTMLTextAreaElement>("[data-html-source]");
@@ -289,7 +324,12 @@ canvas.addEventListener("pointerdown", (event) => {
     resizeHandle.setPointerCapture(event.pointerId);
     resizingImportedElement = iframeRect !== undefined;
     resizeInitialAttributes = resizingImportedElement ? node.attributes : undefined;
-    resizeSession = startResizeSession(node.id, resizeHandleName, { x: event.clientX, y: event.clientY }, initialGeometry);
+    resizeSession = startResizeSession(
+      node.id,
+      resizeHandleName,
+      { x: event.clientX, y: event.clientY },
+      initialGeometry,
+    );
     previewGeometry = initialGeometry;
     editor.interaction.startDrag();
     return;
@@ -327,12 +367,17 @@ canvas.addEventListener("pointerup", () => {
     previewGeometry = undefined;
     resizingImportedElement = false;
     resizeInitialAttributes = undefined;
-    if (geometry.width !== session.initialGeometry.width || geometry.height !== session.initialGeometry.height) {
+    if (
+      geometry.width !== session.initialGeometry.width ||
+      geometry.height !== session.initialGeometry.height
+    ) {
       if (wasImportedElement && importedAttributes) {
-        editor.dispatch(commands.setNodeAttributes({
-          nodeId: session.nodeId,
-          attributes: withElementSize(importedAttributes, geometry),
-        }));
+        editor.dispatch(
+          commands.setNodeAttributes({
+            nodeId: session.nodeId,
+            attributes: withElementSize(importedAttributes, geometry),
+          }),
+        );
       } else {
         editor.dispatch(commands.moveNode({ nodeId: session.nodeId, parentId: "root", geometry }));
       }

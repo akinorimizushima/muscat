@@ -26,13 +26,23 @@ export function getResizeGeometry(session: ResizeSession, pointer: Point): Geome
   const deltaY = pointer.y - session.origin.y;
   const fromWest = session.handle.endsWith("west");
   const fromNorth = session.handle.startsWith("north");
-  const width = Math.max(session.minimumSize, session.initialGeometry.width + (fromWest ? -deltaX : deltaX));
-  const height = Math.max(session.minimumSize, session.initialGeometry.height + (fromNorth ? -deltaY : deltaY));
+  const width = Math.max(
+    session.minimumSize,
+    session.initialGeometry.width + (fromWest ? -deltaX : deltaX),
+  );
+  const height = Math.max(
+    session.minimumSize,
+    session.initialGeometry.height + (fromNorth ? -deltaY : deltaY),
+  );
 
   return {
     ...session.initialGeometry,
-    x: fromWest ? session.initialGeometry.x + session.initialGeometry.width - width : session.initialGeometry.x,
-    y: fromNorth ? session.initialGeometry.y + session.initialGeometry.height - height : session.initialGeometry.y,
+    x: fromWest
+      ? session.initialGeometry.x + session.initialGeometry.width - width
+      : session.initialGeometry.x,
+    y: fromNorth
+      ? session.initialGeometry.y + session.initialGeometry.height - height
+      : session.initialGeometry.y,
     width,
     height,
   };

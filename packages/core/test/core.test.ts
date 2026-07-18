@@ -1,4 +1,13 @@
-import { commands, createDocument, createEditor, getDragGeometry, getResizeGeometry, startDragSession, startResizeSession, type EditorNode } from "../src/index.js";
+import {
+  commands,
+  createDocument,
+  createEditor,
+  getDragGeometry,
+  getResizeGeometry,
+  startDragSession,
+  startResizeSession,
+  type EditorNode,
+} from "../src/index.js";
 import { describe, expect, it } from "vitest";
 
 const box = (id: string): Omit<EditorNode, "parentId" | "children"> => ({
@@ -18,11 +27,13 @@ describe("headless editor", () => {
     expect(initial.nodes.a).toBeUndefined();
     expect(afterAdd.nodes.root?.children).toEqual(["a"]);
 
-    editor.dispatch(commands.moveNode({
-      nodeId: "a",
-      parentId: "root",
-      geometry: { x: 20, y: 30, width: 100, height: 80, rotation: 5 },
-    }));
+    editor.dispatch(
+      commands.moveNode({
+        nodeId: "a",
+        parentId: "root",
+        geometry: { x: 20, y: 30, width: 100, height: 80, rotation: 5 },
+      }),
+    );
     expect(editor.getSnapshot().document.nodes.a?.geometry?.x).toBe(20);
     expect(editor.undo()).toBe(true);
     expect(editor.getSnapshot().document.nodes.a?.geometry?.x).toBe(0);
@@ -64,11 +75,15 @@ describe("headless editor", () => {
   it("updates node attributes as an undoable command", () => {
     const editor = createEditor();
     editor.dispatch(commands.addNode({ parentId: "root", node: box("a") }));
-    editor.dispatch(commands.setNodeAttributes({
-      nodeId: "a",
-      attributes: { class: "selected", style: "transform: translate(20px, 10px)" },
-    }));
-    expect(editor.getSnapshot().document.nodes.a?.attributes.style).toContain("translate(20px, 10px)");
+    editor.dispatch(
+      commands.setNodeAttributes({
+        nodeId: "a",
+        attributes: { class: "selected", style: "transform: translate(20px, 10px)" },
+      }),
+    );
+    expect(editor.getSnapshot().document.nodes.a?.attributes.style).toContain(
+      "translate(20px, 10px)",
+    );
     editor.undo();
     expect(editor.getSnapshot().document.nodes.a?.attributes).toEqual({});
     editor.redo();
@@ -77,10 +92,12 @@ describe("headless editor", () => {
 
   it("updates text content as an undoable command", () => {
     const editor = createEditor();
-    editor.dispatch(commands.addNode({
-      parentId: "root",
-      node: { ...box("text"), type: "#text", content: "Before" },
-    }));
+    editor.dispatch(
+      commands.addNode({
+        parentId: "root",
+        node: { ...box("text"), type: "#text", content: "Before" },
+      }),
+    );
     editor.dispatch(commands.setNodeContent({ nodeId: "text", content: "After" }));
     expect(editor.getSnapshot().document.nodes.text?.content).toBe("After");
     editor.undo();
@@ -104,22 +121,30 @@ describe("headless editor", () => {
 
   it("calculates resize previews from every corner and enforces a minimum size", () => {
     const geometry = { x: 10, y: 20, width: 100, height: 80, rotation: 5 };
-    expect(getResizeGeometry(
-      startResizeSession("a", "south-east", { x: 110, y: 100 }, geometry),
-      { x: 140, y: 125 },
-    )).toEqual({ x: 10, y: 20, width: 130, height: 105, rotation: 5 });
-    expect(getResizeGeometry(
-      startResizeSession("a", "north-west", { x: 10, y: 20 }, geometry),
-      { x: 90, y: 90 },
-    )).toEqual({ x: 78, y: 68, width: 32, height: 32, rotation: 5 });
-    expect(getResizeGeometry(
-      startResizeSession("a", "north-east", { x: 110, y: 20 }, geometry),
-      { x: 130, y: 5 },
-    )).toEqual({ x: 10, y: 5, width: 120, height: 95, rotation: 5 });
-    expect(getResizeGeometry(
-      startResizeSession("a", "south-west", { x: 10, y: 100 }, geometry),
-      { x: -10, y: 110 },
-    )).toEqual({ x: -10, y: 20, width: 120, height: 90, rotation: 5 });
+    expect(
+      getResizeGeometry(startResizeSession("a", "south-east", { x: 110, y: 100 }, geometry), {
+        x: 140,
+        y: 125,
+      }),
+    ).toEqual({ x: 10, y: 20, width: 130, height: 105, rotation: 5 });
+    expect(
+      getResizeGeometry(startResizeSession("a", "north-west", { x: 10, y: 20 }, geometry), {
+        x: 90,
+        y: 90,
+      }),
+    ).toEqual({ x: 78, y: 68, width: 32, height: 32, rotation: 5 });
+    expect(
+      getResizeGeometry(startResizeSession("a", "north-east", { x: 110, y: 20 }, geometry), {
+        x: 130,
+        y: 5,
+      }),
+    ).toEqual({ x: 10, y: 5, width: 120, height: 95, rotation: 5 });
+    expect(
+      getResizeGeometry(startResizeSession("a", "south-west", { x: 10, y: 100 }, geometry), {
+        x: -10,
+        y: 110,
+      }),
+    ).toEqual({ x: -10, y: 20, width: 120, height: 90, rotation: 5 });
     expect(geometry).toEqual({ x: 10, y: 20, width: 100, height: 80, rotation: 5 });
   });
 });

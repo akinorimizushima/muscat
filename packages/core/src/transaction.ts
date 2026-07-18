@@ -33,7 +33,10 @@ function isDescendant(document: EditorDocument, ancestorId: NodeId, candidateId:
   return false;
 }
 
-function collectSubtree(document: EditorDocument, rootId: NodeId): Readonly<Record<NodeId, EditorNode>> {
+function collectSubtree(
+  document: EditorDocument,
+  rootId: NodeId,
+): Readonly<Record<NodeId, EditorNode>> {
   const result: Record<NodeId, EditorNode> = {};
   const visit = (id: NodeId): void => {
     const node = requiredNode(document, id);
@@ -51,7 +54,11 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
       if (nodes[command.node.id]) throw new CommandError(`Node already exists: ${command.node.id}`);
       const parent = requiredNode(document, command.parentId);
       const index = command.index ?? parent.children.length;
-      const node: EditorNode = { ...command.node, parentId: parent.id, children: command.node.children ?? [] };
+      const node: EditorNode = {
+        ...command.node,
+        parentId: parent.id,
+        children: command.node.children ?? [],
+      };
       nodes[node.id] = node;
       nodes[parent.id] = { ...parent, children: insertAt(parent.children, node.id, index) };
       return {
@@ -64,7 +71,8 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
       if (node.parentId === null) throw new CommandError("The document root cannot be moved");
       const oldParent = requiredNode(document, node.parentId);
       const newParent = requiredNode(document, command.parentId);
-      if (isDescendant(document, node.id, newParent.id)) throw new CommandError("Cannot move a node into its subtree");
+      if (isDescendant(document, node.id, newParent.id))
+        throw new CommandError("Cannot move a node into its subtree");
       const oldIndex = oldParent.children.indexOf(node.id);
       const oldGeometry = node.geometry;
       const oldParentChildren = oldParent.children.filter((id) => id !== node.id);
@@ -72,12 +80,20 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
       const index = command.index ?? targetChildren.length;
       nodes[oldParent.id] = { ...oldParent, children: oldParentChildren };
       nodes[newParent.id] = { ...newParent, children: insertAt(targetChildren, node.id, index) };
-      nodes[node.id] = command.geometry === undefined
-        ? { ...node, parentId: newParent.id }
-        : { ...node, parentId: newParent.id, geometry: command.geometry };
-      const inverseCommand: Command = oldGeometry === undefined
-        ? { type: "node.move", nodeId: node.id, parentId: oldParent.id, index: oldIndex }
-        : { type: "node.move", nodeId: node.id, parentId: oldParent.id, index: oldIndex, geometry: oldGeometry };
+      nodes[node.id] =
+        command.geometry === undefined
+          ? { ...node, parentId: newParent.id }
+          : { ...node, parentId: newParent.id, geometry: command.geometry };
+      const inverseCommand: Command =
+        oldGeometry === undefined
+          ? { type: "node.move", nodeId: node.id, parentId: oldParent.id, index: oldIndex }
+          : {
+              type: "node.move",
+              nodeId: node.id,
+              parentId: oldParent.id,
+              index: oldIndex,
+              geometry: oldGeometry,
+            };
       return { document: { ...document, nodes }, inverse: { commands: [inverseCommand] } };
     }
     case "node.setAttributes": {
@@ -110,7 +126,17 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
       nodes[parent.id] = { ...parent, children: parent.children.filter((id) => id !== node.id) };
       return {
         document: { ...document, nodes },
-        inverse: { commands: [{ type: "node.restoreSubtree", parentId: parent.id, index, nodes: subtree, rootId: node.id }] },
+        inverse: {
+          commands: [
+            {
+              type: "node.restoreSubtree",
+              parentId: parent.id,
+              index,
+              nodes: subtree,
+              rootId: node.id,
+            },
+          ],
+        },
       };
     }
     case "node.restoreSubtree": {
@@ -119,7 +145,10 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
         if (nodes[id]) throw new CommandError(`Node already exists: ${id}`);
       }
       Object.assign(nodes, command.nodes);
-      nodes[parent.id] = { ...parent, children: insertAt(parent.children, command.rootId, command.index) };
+      nodes[parent.id] = {
+        ...parent,
+        children: insertAt(parent.children, command.rootId, command.index),
+      };
       return {
         document: { ...document, nodes },
         inverse: { commands: [{ type: "node.remove", nodeId: command.rootId }] },
@@ -128,7 +157,10 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
   }
 }
 
-export function applyTransaction(document: EditorDocument, transaction: Transaction): AppliedTransaction {
+export function applyTransaction(
+  document: EditorDocument,
+  transaction: Transaction,
+): AppliedTransaction {
   let current = document;
   const inverses: Command[] = [];
   for (const command of transaction.commands) {
@@ -136,9 +168,10 @@ export function applyTransaction(document: EditorDocument, transaction: Transact
     current = applied.document;
     inverses.unshift(...applied.inverse.commands);
   }
-  const inverse: Transaction = transaction.label === undefined
-    ? { commands: inverses }
-    : { commands: inverses, label: transaction.label };
+  const inverse: Transaction =
+    transaction.label === undefined
+      ? { commands: inverses }
+      : { commands: inverses, label: transaction.label };
   return { document: current, inverse };
 }
 

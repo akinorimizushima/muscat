@@ -1,4 +1,11 @@
-import { commands, createEditor, getDragGeometry, startDragSession, type DragSession, type Geometry } from "../../../src/index.js";
+import {
+  commands,
+  createEditor,
+  getDragGeometry,
+  startDragSession,
+  type DragSession,
+  type Geometry,
+} from "../../../src/index.js";
 import "./style.css";
 
 const editor = createEditor();
@@ -23,7 +30,8 @@ function render(): void {
     element.setAttribute("aria-label", `Node ${node.id}`);
     element.dataset.nodeId = node.id;
     element.textContent = node.content ?? node.id;
-    const geometry = dragSession?.nodeId === node.id && previewGeometry ? previewGeometry : node.geometry;
+    const geometry =
+      dragSession?.nodeId === node.id && previewGeometry ? previewGeometry : node.geometry;
     if (geometry) {
       element.style.left = `${geometry.x}px`;
       element.style.top = `${geometry.y}px`;
@@ -37,17 +45,19 @@ function render(): void {
 
 editor.subscribe(render);
 document.querySelector("#add-node")?.addEventListener("click", () => {
-  editor.dispatch(commands.addNode({
-    parentId: "root",
-    node: {
-      id: `node-${editor.getSnapshot().document.nodes.root?.children.length ?? 0}`,
-      type: "div",
-      layout: "free",
-      geometry: { x: 20, y: 20, width: 120, height: 80 },
-      attributes: {},
-      content: "New node",
-    },
-  }));
+  editor.dispatch(
+    commands.addNode({
+      parentId: "root",
+      node: {
+        id: `node-${editor.getSnapshot().document.nodes.root?.children.length ?? 0}`,
+        type: "div",
+        layout: "free",
+        geometry: { x: 20, y: 20, width: 120, height: 80 },
+        attributes: {},
+        content: "New node",
+      },
+    }),
+  );
 });
 document.querySelector("#undo")?.addEventListener("click", () => editor.undo());
 canvas.addEventListener("pointerdown", (event) => {
@@ -65,7 +75,7 @@ canvas.addEventListener("pointermove", (event) => {
   previewGeometry = getDragGeometry(dragSession, { x: event.clientX, y: event.clientY });
   render();
 });
-canvas.addEventListener("pointerup", (event) => {
+canvas.addEventListener("pointerup", () => {
   if (!dragSession || !previewGeometry) return;
   const session = dragSession;
   const geometry = previewGeometry;

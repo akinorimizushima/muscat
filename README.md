@@ -19,23 +19,27 @@ const unsubscribe = editor.subscribe((snapshot) => {
   console.log(snapshot.document, snapshot.canUndo);
 });
 
-editor.dispatch(commands.addNode({
-  parentId: "root",
-  node: {
-    id: "hero",
-    type: "section",
-    layout: "free",
-    geometry: { x: 20, y: 40, width: 640, height: 320 },
-    attributes: { class: "hero" },
-  },
-}));
+editor.dispatch(
+  commands.addNode({
+    parentId: "root",
+    node: {
+      id: "hero",
+      type: "section",
+      layout: "free",
+      geometry: { x: 20, y: 40, width: 640, height: 320 },
+      attributes: { class: "hero" },
+    },
+  }),
+);
 
 editor.interaction.startDrag(); // transient; does not mutate the document
-editor.dispatch(commands.moveNode({
-  nodeId: "hero",
-  parentId: "root",
-  geometry: { x: 80, y: 40, width: 640, height: 320 },
-})); // commit once, typically on pointerup
+editor.dispatch(
+  commands.moveNode({
+    nodeId: "hero",
+    parentId: "root",
+    geometry: { x: 80, y: 40, width: 640, height: 320 },
+  }),
+); // commit once, typically on pointerup
 editor.interaction.commitDrag();
 
 editor.undo();

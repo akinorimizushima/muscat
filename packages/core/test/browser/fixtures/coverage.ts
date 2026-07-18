@@ -15,7 +15,10 @@ export const test = base.extend({
     if (!coverage) return;
     const directory = path.resolve(import.meta.dirname, "../../../coverage/raw");
     await mkdir(directory, { recursive: true });
-    await writeFile(path.join(directory, `browser-${testInfo.testId}.json`), JSON.stringify(coverage));
+    await writeFile(
+      path.join(directory, `browser-${testInfo.testId}.json`),
+      JSON.stringify(coverage),
+    );
   },
 });
 

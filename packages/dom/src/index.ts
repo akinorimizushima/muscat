@@ -1,6 +1,21 @@
-import { commands, type Command, type EditorNode, type Geometry, type Transaction } from "@muscat/core";
+import {
+  commands,
+  type Command,
+  type EditorNode,
+  type Geometry,
+  type Transaction,
+} from "@muscat/core";
 
-const BLOCKED_ELEMENTS = new Set(["script", "style", "link", "meta", "base", "iframe", "object", "embed"]);
+const BLOCKED_ELEMENTS = new Set([
+  "script",
+  "style",
+  "link",
+  "meta",
+  "base",
+  "iframe",
+  "object",
+  "embed",
+]);
 const URL_ATTRIBUTES = new Set(["href", "src", "poster", "action", "formaction"]);
 
 export interface HtmlImportResult {
@@ -15,7 +30,11 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
   const topLevelIds: string[] = [];
   let topLevelIndex = 0;
 
-  const addElement = (element: Element, parentId: string, geometry?: Geometry): string | undefined => {
+  const addElement = (
+    element: Element,
+    parentId: string,
+    geometry?: Geometry,
+  ): string | undefined => {
     const tagName = element.tagName.toLowerCase();
     if (BLOCKED_ELEMENTS.has(tagName)) return undefined;
 
@@ -25,32 +44,45 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
       const name = attribute.name.toLowerCase();
       if (name.startsWith("on") || name === "srcdoc") continue;
       if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value)) continue;
-      if (name === "style" && /(?:javascript\s*:|expression\s*\(|url\s*\()/i.test(attribute.value)) continue;
+      if (name === "style" && /(?:javascript\s*:|expression\s*\(|url\s*\()/i.test(attribute.value))
+        continue;
       attributes[name] = attribute.value;
     }
     element.setAttribute("data-muscat-node-id", id);
 
-    commandsList.push(commands.addNode({
-      parentId,
-      node: {
-        id,
-        type: tagName,
-        layout: geometry ? "free" : "flow",
-        ...(geometry ? { geometry } : {}),
-        attributes,
-      },
-    }));
+    commandsList.push(
+      commands.addNode({
+        parentId,
+        node: {
+          id,
+          type: tagName,
+          layout: geometry ? "free" : "flow",
+          ...(geometry ? { geometry } : {}),
+          attributes,
+        },
+      }),
+    );
 
+    // Take a snapshot because this loop inserts marker comments into the live NodeList.
+    // oxlint-disable-next-line unicorn/no-useless-spread
     for (const child of [...element.childNodes]) {
       if (child.nodeType === Node.ELEMENT_NODE) {
         addElement(child as Element, id);
       } else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
         const textId = nextId();
         element.insertBefore(parsed.createComment(`muscat-text:${textId}`), child);
-        commandsList.push(commands.addNode({
-          parentId: id,
-          node: { id: textId, type: "#text", layout: "flow", attributes: {}, content: child.textContent },
-        }));
+        commandsList.push(
+          commands.addNode({
+            parentId: id,
+            node: {
+              id: textId,
+              type: "#text",
+              layout: "flow",
+              attributes: {},
+              content: child.textContent,
+            },
+          }),
+        );
       }
     }
     return id;
@@ -66,10 +98,19 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
       }
     } else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
       const id = nextId();
-      commandsList.push(commands.addNode({
-        parentId: "root",
-        node: { id, type: "p", layout: "free", geometry, attributes: {}, content: child.textContent.trim() },
-      }));
+      commandsList.push(
+        commands.addNode({
+          parentId: "root",
+          node: {
+            id,
+            type: "p",
+            layout: "free",
+            geometry,
+            attributes: {},
+            content: child.textContent.trim(),
+          },
+        }),
+      );
       topLevelIds.push(id);
       topLevelIndex++;
     }
@@ -88,17 +129,25 @@ function defaultGeometry(index: number): Geometry {
 }
 
 function isSafeUrl(value: string): boolean {
-  const normalized = value.trim().replace(/[\u0000-\u0020]/g, "").toLowerCase();
+  /* oxlint-disable eslint/no-control-regex -- URL normalization intentionally strips ASCII control characters. */
+  const normalized = value
+    .trim()
+    .replace(/[\u0000-\u0020]/g, "")
+    .toLowerCase();
+  /* oxlint-enable eslint/no-control-regex */
   return !normalized.startsWith("javascript:") && !normalized.startsWith("data:text/html");
 }
 
 function sanitizeDocument(document: Document): void {
   document.querySelectorAll("script, iframe, object, embed").forEach((element) => element.remove());
   document.querySelectorAll("*").forEach((element) => {
+    // Take a snapshot because removing entries mutates the live NamedNodeMap.
+    // oxlint-disable-next-line unicorn/no-useless-spread
     for (const attribute of [...element.attributes]) {
       const name = attribute.name.toLowerCase();
       if (name.startsWith("on") || name === "srcdoc") element.removeAttribute(attribute.name);
-      if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value)) element.removeAttribute(attribute.name);
+      if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value))
+        element.removeAttribute(attribute.name);
     }
   });
   const editorStyle = document.createElement("style");
@@ -111,9 +160,7 @@ function sanitizeDocument(document: Document): void {
 }
 
 function serializeDocument(document: Document): string {
-  const doctype = document.doctype
-    ? `<!doctype ${document.doctype.name}>\n`
-    : "<!doctype html>\n";
+  const doctype = document.doctype ? `<!doctype ${document.doctype.name}>\n` : "<!doctype html>\n";
   return `${doctype}${document.documentElement.outerHTML}`;
 }
 
@@ -144,27 +191,31 @@ export function createIframeRenderer(
     disconnectDocument?.();
     const frameDocument = iframe.contentDocument;
     if (!frameDocument) return;
-    let drag: {
-      readonly element: HTMLElement;
-      readonly nodeId: string;
-      readonly originX: number;
-      readonly originY: number;
-      readonly initialTransform: string;
-      deltaX: number;
-      deltaY: number;
-      moved: boolean;
-    } | undefined;
+    let drag:
+      | {
+          readonly element: HTMLElement;
+          readonly nodeId: string;
+          readonly originX: number;
+          readonly originY: number;
+          readonly initialTransform: string;
+          deltaX: number;
+          deltaY: number;
+          moved: boolean;
+        }
+      | undefined;
     let suppressClick = false;
-    let editing: {
-      readonly element: HTMLElement;
-      readonly textNodeId: string;
-      readonly initialContent: string;
-    } | undefined;
+    let editing:
+      | {
+          readonly element: HTMLElement;
+          readonly textNodeId: string;
+          readonly initialContent: string;
+        }
+      | undefined;
     const finishEditing = (cancel: boolean): void => {
       if (!editing) return;
       const completed = editing;
       editing = undefined;
-      const content = cancel ? completed.initialContent : completed.element.textContent ?? "";
+      const content = cancel ? completed.initialContent : (completed.element.textContent ?? "");
       completed.element.removeAttribute("contenteditable");
       completed.element.replaceChildren(
         frameDocument.createComment(`muscat-text:${completed.textNodeId}`),
@@ -321,10 +372,13 @@ export function createIframeRenderer(
           `[data-muscat-node-id="${CSS.escape(node.id)}"]`,
         );
         if (!element) continue;
+        // Take a snapshot because removing entries mutates the live NamedNodeMap.
+        // oxlint-disable-next-line unicorn/no-useless-spread
         for (const attribute of [...element.attributes]) {
           if (attribute.name !== "data-muscat-node-id") element.removeAttribute(attribute.name);
         }
-        for (const [name, value] of Object.entries(node.attributes)) element.setAttribute(name, value);
+        for (const [name, value] of Object.entries(node.attributes))
+          element.setAttribute(name, value);
       }
     },
     dispose() {
@@ -356,7 +410,10 @@ function findTextNode(document: Document, nodeId: string): Text | undefined {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
   while (walker.nextNode()) {
     const comment = walker.currentNode as Comment;
-    if (comment.data === `muscat-text:${nodeId}` && comment.nextSibling?.nodeType === Node.TEXT_NODE) {
+    if (
+      comment.data === `muscat-text:${nodeId}` &&
+      comment.nextSibling?.nodeType === Node.TEXT_NODE
+    ) {
       return comment.nextSibling as Text;
     }
   }

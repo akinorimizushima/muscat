@@ -40,9 +40,18 @@ export function createEditor(options: CreateEditorOptions = {}): Editor {
   const emit = (): void => listeners.forEach((listener) => listener(snapshot()));
   const interaction: InteractionController = {
     getMode: rawInteraction.getMode,
-    startDrag: () => { rawInteraction.startDrag(); emit(); },
-    commitDrag: () => { rawInteraction.commitDrag(); emit(); },
-    cancelDrag: () => { rawInteraction.cancelDrag(); emit(); },
+    startDrag: () => {
+      rawInteraction.startDrag();
+      emit();
+    },
+    commitDrag: () => {
+      rawInteraction.commitDrag();
+      emit();
+    },
+    cancelDrag: () => {
+      rawInteraction.cancelDrag();
+      emit();
+    },
     dispose: rawInteraction.dispose,
   };
   const execute = (transaction: Transaction, recordUndo: boolean): Transaction => {
