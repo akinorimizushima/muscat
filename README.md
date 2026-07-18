@@ -44,6 +44,8 @@ editor.dispose();
 
 ## Development
 
+Node.js `24.6.0` and pnpm `10.15.0` are pinned in `package.json`. pnpm automatically uses the configured Node.js version for lifecycle scripts.
+
 ```sh
 pnpm install
 pnpm typecheck
