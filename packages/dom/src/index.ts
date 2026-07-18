@@ -197,7 +197,9 @@ export function createIframeRenderer(
           readonly nodeId: string;
           readonly originX: number;
           readonly originY: number;
-          readonly initialTransform: string;
+          readonly position: string;
+          readonly initialLeft: string;
+          readonly initialTop: string;
           deltaX: number;
           deltaY: number;
           moved: boolean;
@@ -240,12 +242,23 @@ export function createIframeRenderer(
       if (!element || !nodeId) return;
       event.preventDefault();
       options.onSelect?.(nodeId);
+      const computedStyle = iframe.contentWindow?.getComputedStyle(element);
       drag = {
         element,
         nodeId,
         originX: event.clientX,
         originY: event.clientY,
-        initialTransform: element.style.transform,
+        position:
+          element.style.position ||
+          (computedStyle?.position === "static"
+            ? "relative"
+            : (computedStyle?.position ?? "relative")),
+        initialLeft:
+          element.style.left ||
+          (computedStyle?.left === "auto" ? "0px" : (computedStyle?.left ?? "0px")),
+        initialTop:
+          element.style.top ||
+          (computedStyle?.top === "auto" ? "0px" : (computedStyle?.top ?? "0px")),
         deltaX: 0,
         deltaY: 0,
         moved: false,
@@ -258,8 +271,9 @@ export function createIframeRenderer(
       drag.moved = true;
       drag.deltaX = deltaX;
       drag.deltaY = deltaY;
-      const suffix = drag.initialTransform ? ` ${drag.initialTransform}` : "";
-      drag.element.style.transform = `translate(${deltaX}px, ${deltaY}px)${suffix}`;
+      drag.element.style.position = drag.position;
+      drag.element.style.left = `calc(${drag.initialLeft} + ${deltaX}px)`;
+      drag.element.style.top = `calc(${drag.initialTop} + ${deltaY}px)`;
       options.onDragPreview?.(drag.nodeId, deltaX, deltaY);
     };
     const handlePointerUp = (): void => {

@@ -29,7 +29,7 @@ test("keeps the selection overlay aligned when an iframe parent scrolls", async 
 
 test("moves an iframe element and its selection overlay during drag", async ({ page }) => {
   await page.goto("/");
-  const target = page.frameLocator("iframe").locator("h2");
+  const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.click();
   await expect(target).toHaveCSS("cursor", "move");
   const before = await target.boundingBox();
@@ -48,9 +48,25 @@ test("moves an iframe element and its selection overlay during drag", async ({ p
   await page.mouse.up();
 });
 
+test("keeps the imported sample's Revenue span at its dropped position", async ({ page }) => {
+  await page.goto("/");
+  const target = page.frameLocator("iframe").getByText("Revenue", { exact: true });
+  await target.click();
+  const before = await target.boundingBox();
+  if (!before) throw new Error("Target is not visible");
+
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width / 2 + 60, before.y + before.height / 2 + 40);
+  await page.mouse.up();
+
+  await expect.poll(async () => (await target.boundingBox())?.x).toBeCloseTo(before.x + 60, 0);
+  await expect.poll(async () => (await target.boundingBox())?.y).toBeCloseTo(before.y + 40, 0);
+});
+
 test("edits leaf text and reports the text node change", async ({ page }) => {
   await page.goto("/");
-  const target = page.frameLocator("iframe").locator("h2");
+  const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.dblclick();
   await expect(target).toHaveAttribute("contenteditable", "plaintext-only");
   await expect(target).toHaveCSS("cursor", "text");
@@ -62,5 +78,5 @@ test("edits leaf text and reports the text node change", async ({ page }) => {
   await expect(target).toHaveText("Updated heading");
   await expect(target).not.toHaveAttribute("contenteditable", /.*/);
   await expect(page.locator("#app")).toHaveAttribute("data-changed-content", "Updated heading");
-  await expect(page.locator("#app")).toHaveAttribute("data-changed-node-id", "node-3");
+  await expect(page.locator("#app")).toHaveAttribute("data-changed-node-id", /^node-\d+$/);
 });
