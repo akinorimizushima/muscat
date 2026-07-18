@@ -1,4 +1,5 @@
 import { commands, createEditor, getDragGeometry, startDragSession, type DragSession, type EditorNode, type Geometry } from "@muscat/core";
+import { createDomNode, importHtml } from "@muscat/dom";
 import "./style.css";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -11,6 +12,7 @@ app.innerHTML = `
       <h1>Muscat</h1>
     </div>
     <nav class="actions" aria-label="Editor actions">
+      <button type="button" data-action="import">Import HTML</button>
       <button type="button" data-action="add">Add element</button>
       <button type="button" data-action="undo">Undo</button>
       <button type="button" data-action="redo">Redo</button>
@@ -33,6 +35,21 @@ app.innerHTML = `
       <pre data-snapshot></pre>
     </aside>
   </main>
+  <dialog data-import-dialog>
+    <form method="dialog" class="import-form">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">Source</p><h2>Import HTML</h2></div>
+        <button class="icon-button" value="cancel" aria-label="Close" title="Close">&times;</button>
+      </div>
+      <label for="html-source">HTML</label>
+      <textarea id="html-source" data-html-source spellcheck="false" placeholder="<section>...</section>"></textarea>
+      <output class="import-error" data-import-error aria-live="polite"></output>
+      <div class="dialog-actions">
+        <button value="cancel">Cancel</button>
+        <button type="button" data-action="confirm-import">Import</button>
+      </div>
+    </form>
+  </dialog>
 `;
 
 const editor = createEditor();
@@ -41,6 +58,7 @@ const tree = requiredElement<HTMLOListElement>("[data-document-tree]");
 const status = requiredElement<HTMLOutputElement>("[data-status]");
 const snapshotOutput = requiredElement<HTMLElement>("[data-snapshot]");
 let nextNodeNumber = 1;
+let nextImportedNodeNumber = 1;
 let dragSession: DragSession | undefined;
 let previewGeometry: Geometry | undefined;
 
@@ -50,12 +68,21 @@ function requiredElement<T extends Element>(selector: string): T {
   return element;
 }
 
-function createNodeElement(node: EditorNode): HTMLElement {
+function createNodeElement(node: EditorNode, nodes: Readonly<Record<string, EditorNode>>): HTMLElement {
   const element = document.createElement("article");
   element.className = "canvas-node";
   element.dataset.nodeId = node.id;
   element.setAttribute("aria-label", `Node ${node.id}`);
-  element.innerHTML = `<span>${node.content ?? node.id}</span><small>${node.type}</small>`;
+  const content = document.createElement("div");
+  content.className = "node-content";
+  if (node.children.length > 0 || Object.keys(node.attributes).length > 0) {
+    content.append(createDomNode(node, nodes));
+  } else {
+    content.textContent = node.content ?? node.id;
+  }
+  const tag = document.createElement("small");
+  tag.textContent = node.type;
+  element.append(content, tag);
   const geometry = dragSession?.nodeId === node.id && previewGeometry ? previewGeometry : node.geometry;
   if (geometry) {
     element.style.left = `${geometry.x}px`;
@@ -73,7 +100,7 @@ function render(): void {
     .map((id) => snapshot.document.nodes[id])
     .filter((node): node is EditorNode => node !== undefined);
 
-  canvas.replaceChildren(...nodes.map(createNodeElement));
+  canvas.replaceChildren(...nodes.map((node) => createNodeElement(node, snapshot.document.nodes)));
   tree.replaceChildren(...nodes.map((node) => {
     const item = document.createElement("li");
     item.textContent = `${node.content ?? node.id} · ${node.layout}`;
@@ -99,6 +126,24 @@ document.querySelector("[data-action='add']")?.addEventListener("click", () => {
       content: `Element ${number}`,
     },
   }));
+});
+const importDialog = requiredElement<HTMLDialogElement>("[data-import-dialog]");
+const htmlSource = requiredElement<HTMLTextAreaElement>("[data-html-source]");
+const importError = requiredElement<HTMLOutputElement>("[data-import-error]");
+document.querySelector("[data-action='import']")?.addEventListener("click", () => {
+  importError.textContent = "";
+  importDialog.showModal();
+  htmlSource.focus();
+});
+document.querySelector("[data-action='confirm-import']")?.addEventListener("click", () => {
+  const result = importHtml(htmlSource.value, () => `imported-${nextImportedNodeNumber++}`);
+  if (result.topLevelIds.length === 0) {
+    importError.textContent = "Importable HTML elements were not found.";
+    return;
+  }
+  editor.dispatch(result.transaction);
+  importDialog.close();
+  htmlSource.value = "";
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());

@@ -5,6 +5,7 @@ An early, headless foundation for an HTML GUI editor. The first vertical slice i
 ## Workspace
 
 - `@muscat/core`: DOM-free document, command, transaction, history, and editor APIs.
+- `@muscat/dom`: Safe HTML parsing into core transactions and rendering core nodes into DOM nodes.
 - XState v5 is an implementation detail used only for transient workflow state (`idle` / `dragging`). It does not own the document tree and its actor types are not public.
 - UI frameworks, DOM rendering, pointer-event adapters, persistence, and collaboration are deliberately outside core. Future packages can add `renderer-dom`, `interaction-dom`, `ui-lit`, and a Yjs adapter through explicit transaction boundaries.
 

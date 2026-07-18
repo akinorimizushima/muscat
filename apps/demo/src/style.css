@@ -19,7 +19,7 @@ button {
   padding: 0.65rem 1rem;
 }
 
-button:first-child { background: #5c1f43; color: white; }
+button[data-action="import"], button[data-action="confirm-import"] { background: #5c1f43; color: white; }
 button:disabled { cursor: not-allowed; opacity: 0.35; }
 
 .topbar {
@@ -48,6 +48,19 @@ h2 { font-size: 0.8rem; letter-spacing: 0.08em; margin: 0 0 1rem; text-transform
 .stage { background: #fffdf7; border: 1px solid #c9c4b8; min-height: calc(100vh - 165px); overflow: hidden; position: relative; }
 .canvas-node { background: #e7d7e0; border: 1px solid #713155; border-radius: 12px; cursor: grab; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; position: absolute; touch-action: none; user-select: none; }
 .canvas-node:active { cursor: grabbing; }
-.canvas-node span { font-family: Georgia, serif; font-size: 1.4rem; }
+.node-content { flex: 1; min-height: 0; overflow: auto; pointer-events: none; }
+.node-content > :first-child { max-width: 100%; }
+.canvas-node > .node-content { font-family: Georgia, serif; font-size: 1rem; }
 .canvas-node small { color: #713155; text-transform: uppercase; }
 pre { font-size: 0.7rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+
+dialog { border: 1px solid #272219; border-radius: 8px; padding: 0; width: min(680px, calc(100vw - 2rem)); }
+dialog::backdrop { background: rgb(37 32 25 / 45%); }
+.import-form { display: grid; gap: 0.75rem; padding: 1.25rem; }
+.dialog-heading, .dialog-actions { align-items: center; display: flex; justify-content: space-between; }
+.dialog-heading h2 { font-size: 1.1rem; margin: 0.2rem 0 0; }
+.icon-button { align-items: center; display: inline-flex; font-size: 1.5rem; height: 2.25rem; justify-content: center; padding: 0; width: 2.25rem; }
+.import-form label { font-size: 0.78rem; font-weight: 600; }
+.import-form textarea { border: 1px solid #9e978b; border-radius: 4px; font: 0.85rem/1.5 ui-monospace, monospace; min-height: 260px; padding: 0.75rem; resize: vertical; }
+.dialog-actions { gap: 0.5rem; justify-content: flex-end; }
+.import-error { color: #9d2020; min-height: 1.25rem; }

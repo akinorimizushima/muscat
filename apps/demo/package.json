@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@muscat/core": "workspace:*"
+    "@muscat/core": "workspace:*",
+    "@muscat/dom": "workspace:*"
   },
   "devDependencies": {
     "vite": "^7.1.3"
