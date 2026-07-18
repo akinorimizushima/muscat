@@ -11,10 +11,21 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
+    "test:browser": "playwright test -c test/browser/playwright.config.ts",
+    "test:coverage": "rimraf coverage && vitest run --config vitest.config.ts --coverage && mkdir -p coverage/raw && cp coverage/unit/coverage-final.json coverage/raw/unit.json && VITE_COVERAGE=true playwright test -c test/browser/playwright.config.ts && nyc merge coverage/raw coverage/coverage.json && nyc report --temp-dir coverage --report-dir coverage/report --reporter=text --reporter=html --reporter=lcov",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "xstate": "^5.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-istanbul": "^3.2.4",
+    "nyc": "^17.1.0",
+    "rimraf": "^6.0.1",
+    "vite": "^7.1.3",
+    "vite-plugin-istanbul": "^8.0.0"
   }
 }

@@ -50,7 +50,11 @@ Node.js `24.6.0` and pnpm `10.15.0` are pinned in `package.json`. pnpm automatic
 pnpm install
 pnpm typecheck
 pnpm test
+pnpm test:browser
+pnpm test:coverage
 pnpm build
 ```
+
+Browser tests live beside core in `packages/core/test/browser`. A small Vite-powered GUI harness consumes only the public core API, Playwright exercises it in Chromium, and Istanbul coverage is merged with Vitest coverage into `packages/core/coverage/report`.
 
 The core remains plain TypeScript and DOM-independent. High-frequency pointer movement belongs in a future interaction session package using `requestAnimationFrame`; only the final geometry becomes one document transaction. Collaboration should similarly translate between Yjs operations and public document transactions without exposing Yjs types.

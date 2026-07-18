@@ -1,0 +1,18 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 2rem;
+}
+
+#canvas {
+  border: 1px solid #aaa;
+  margin-top: 1rem;
+  min-height: 240px;
+  padding: 1rem;
+}
+
+#canvas article {
+  background: #eee;
+  border: 1px solid #777;
+  height: 80px;
+  width: 120px;
+}
