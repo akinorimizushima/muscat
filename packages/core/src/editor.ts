@@ -52,7 +52,6 @@ export function createEditor(options: CreateEditorOptions = {}): Editor {
       undoStack = [...undoStack, applied.inverse];
       redoStack = [];
     }
-    emit();
     return applied.inverse;
   };
   return {
@@ -63,6 +62,7 @@ export function createEditor(options: CreateEditorOptions = {}): Editor {
     },
     dispatch(input) {
       execute("commands" in input ? input : { commands: [input] }, true);
+      emit();
     },
     can: (command) => canApply(document, command),
     undo() {
@@ -70,6 +70,7 @@ export function createEditor(options: CreateEditorOptions = {}): Editor {
       if (!transaction) return false;
       undoStack = undoStack.slice(0, -1);
       redoStack = [...redoStack, execute(transaction, false)];
+      emit();
       return true;
     },
     redo() {
@@ -77,6 +78,7 @@ export function createEditor(options: CreateEditorOptions = {}): Editor {
       if (!transaction) return false;
       redoStack = redoStack.slice(0, -1);
       undoStack = [...undoStack, execute(transaction, false)];
+      emit();
       return true;
     },
     interaction,

@@ -22,6 +22,12 @@ export interface RemoveNodeCommand {
   readonly nodeId: NodeId;
 }
 
+export interface SetNodeAttributesCommand {
+  readonly type: "node.setAttributes";
+  readonly nodeId: NodeId;
+  readonly attributes: Readonly<Record<string, string>>;
+}
+
 export interface RestoreSubtreeCommand {
   readonly type: "node.restoreSubtree";
   readonly parentId: NodeId;
@@ -33,6 +39,7 @@ export interface RestoreSubtreeCommand {
 export type Command =
   | AddNodeCommand
   | MoveNodeCommand
+  | SetNodeAttributesCommand
   | RemoveNodeCommand
   | RestoreSubtreeCommand;
 
@@ -45,5 +52,8 @@ export const commands = {
   },
   removeNode(command: Omit<RemoveNodeCommand, "type">): RemoveNodeCommand {
     return { type: "node.remove", ...command };
+  },
+  setNodeAttributes(command: Omit<SetNodeAttributesCommand, "type">): SetNodeAttributesCommand {
+    return { type: "node.setAttributes", ...command };
   },
 };

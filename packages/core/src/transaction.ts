@@ -80,6 +80,16 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
         : { type: "node.move", nodeId: node.id, parentId: oldParent.id, index: oldIndex, geometry: oldGeometry };
       return { document: { ...document, nodes }, inverse: { commands: [inverseCommand] } };
     }
+    case "node.setAttributes": {
+      const node = requiredNode(document, command.nodeId);
+      nodes[node.id] = { ...node, attributes: { ...command.attributes } };
+      return {
+        document: { ...document, nodes },
+        inverse: {
+          commands: [{ type: "node.setAttributes", nodeId: node.id, attributes: node.attributes }],
+        },
+      };
+    }
     case "node.remove": {
       const node = requiredNode(document, command.nodeId);
       if (node.parentId === null) throw new CommandError("The document root cannot be removed");

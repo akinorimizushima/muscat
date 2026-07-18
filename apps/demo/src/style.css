@@ -46,12 +46,15 @@ h2 { font-size: 0.8rem; letter-spacing: 0.08em; margin: 0 0 1rem; text-transform
 .stage-shell { padding: 1.5rem; }
 .stage-heading { display: flex; font-size: 0.8rem; justify-content: space-between; letter-spacing: 0.06em; margin-bottom: 0.75rem; text-transform: uppercase; }
 .stage { background: #fffdf7; border: 1px solid #c9c4b8; min-height: calc(100vh - 165px); overflow: hidden; position: relative; }
-.canvas-node { background: #e7d7e0; border: 1px solid #713155; border-radius: 12px; cursor: grab; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; position: absolute; touch-action: none; user-select: none; }
+.canvas-frame { background: white; border: 0; display: block; height: calc(100vh - 167px); width: 100%; }
+.canvas-node { cursor: grab; position: absolute; touch-action: none; user-select: none; }
 .canvas-node:active { cursor: grabbing; }
-.node-content { flex: 1; min-height: 0; overflow: auto; pointer-events: none; }
+.canvas-node.is-placeholder { background: #e7d7e0; border: 1px solid #713155; padding: 1rem; }
+.node-content { height: 100%; min-height: 0; overflow: visible; }
 .node-content > :first-child { max-width: 100%; }
 .canvas-node > .node-content { font-family: Georgia, serif; font-size: 1rem; }
-.canvas-node small { color: #713155; text-transform: uppercase; }
+.selection-overlay { border: 2px solid #147d68; pointer-events: none; position: absolute; z-index: 100; }
+.selection-overlay span { background: #147d68; color: white; font: 600 11px/1.5 Inter, sans-serif; left: -2px; padding: 2px 6px; position: absolute; text-transform: uppercase; top: -23px; }
 pre { font-size: 0.7rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 
 dialog { border: 1px solid #272219; border-radius: 8px; padding: 0; width: min(680px, calc(100vw - 2rem)); }

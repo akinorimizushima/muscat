@@ -11,9 +11,14 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "test:browser": "playwright test -c test/browser/playwright.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@muscat/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "vite": "^7.1.3"
   }
 }

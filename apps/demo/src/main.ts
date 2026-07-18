@@ -1,5 +1,5 @@
 import { commands, createEditor, getDragGeometry, startDragSession, type DragSession, type EditorNode, type Geometry } from "@muscat/core";
-import { createDomNode, importHtml } from "@muscat/dom";
+import { createDomNode, createIframeRenderer, importHtml, type IframeRenderer } from "@muscat/dom";
 import "./style.css";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -61,6 +61,9 @@ let nextNodeNumber = 1;
 let nextImportedNodeNumber = 1;
 let dragSession: DragSession | undefined;
 let previewGeometry: Geometry | undefined;
+let selectedNodeId: string | undefined;
+let importedPage: { readonly srcdoc: string; readonly topLevelIds: readonly string[] } | undefined;
+let iframeRenderer: IframeRenderer | undefined;
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -69,20 +72,24 @@ function requiredElement<T extends Element>(selector: string): T {
 }
 
 function createNodeElement(node: EditorNode, nodes: Readonly<Record<string, EditorNode>>): HTMLElement {
-  const element = document.createElement("article");
+  const element = document.createElement("div");
   element.className = "canvas-node";
   element.dataset.nodeId = node.id;
   element.setAttribute("aria-label", `Node ${node.id}`);
   const content = document.createElement("div");
   content.className = "node-content";
   if (node.children.length > 0 || Object.keys(node.attributes).length > 0) {
-    content.append(createDomNode(node, nodes));
+    content.append(createDomNode(node, nodes, {
+      onElement(importedNode, importedElement) {
+        importedElement.dataset.editorNodeId = importedNode.id;
+      },
+    }));
   } else {
+    element.classList.add("is-placeholder");
+    content.dataset.editorNodeId = node.id;
     content.textContent = node.content ?? node.id;
   }
-  const tag = document.createElement("small");
-  tag.textContent = node.type;
-  element.append(content, tag);
+  element.append(content);
   const geometry = dragSession?.nodeId === node.id && previewGeometry ? previewGeometry : node.geometry;
   if (geometry) {
     element.style.left = `${geometry.x}px`;
@@ -100,7 +107,14 @@ function render(): void {
     .map((id) => snapshot.document.nodes[id])
     .filter((node): node is EditorNode => node !== undefined);
 
-  canvas.replaceChildren(...nodes.map((node) => createNodeElement(node, snapshot.document.nodes)));
+  const hasImportedPage = importedPage?.topLevelIds.some((id) => snapshot.document.nodes[id]) ?? false;
+  if (hasImportedPage) {
+    renderIframe(snapshot.document.nodes);
+  } else {
+    iframeRenderer?.dispose();
+    iframeRenderer = undefined;
+    canvas.replaceChildren(...nodes.map((node) => createNodeElement(node, snapshot.document.nodes)));
+  }
   tree.replaceChildren(...nodes.map((node) => {
     const item = document.createElement("li");
     item.textContent = `${node.content ?? node.id} · ${node.layout}`;
@@ -111,6 +125,71 @@ function render(): void {
 
   requiredElement<HTMLButtonElement>("[data-action='undo']").disabled = !snapshot.canUndo;
   requiredElement<HTMLButtonElement>("[data-action='redo']").disabled = !snapshot.canRedo;
+  updateSelectionOverlay();
+}
+
+function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
+  if (iframeRenderer) {
+    iframeRenderer.syncNodes(nodes);
+    return;
+  }
+  if (!importedPage) return;
+  const iframe = document.createElement("iframe");
+  iframe.className = "canvas-frame";
+  iframe.title = "Imported HTML document";
+  canvas.replaceChildren(iframe);
+  iframeRenderer = createIframeRenderer(iframe, {
+    onSelect(nodeId) {
+      selectedNodeId = nodeId;
+      updateSelectionOverlay();
+    },
+    onLoad() {
+      iframeRenderer?.syncNodes(editor.getSnapshot().document.nodes);
+      updateSelectionOverlay();
+    },
+    onViewportChange: updateSelectionOverlay,
+    onDragPreview(_nodeId, deltaX, deltaY) {
+      const overlay = canvas.querySelector<HTMLElement>("[data-selection-overlay]");
+      if (overlay) overlay.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    },
+    onMove(nodeId, attributes) {
+      editor.dispatch(commands.setNodeAttributes({ nodeId, attributes }));
+    },
+  });
+  iframeRenderer.render(importedPage.srcdoc);
+}
+
+function updateSelectionOverlay(): void {
+  canvas.querySelector("[data-selection-overlay]")?.remove();
+  if (!selectedNodeId) return;
+  const node = editor.getSnapshot().document.nodes[selectedNodeId];
+  if (!node) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const frame = canvas.querySelector<HTMLIFrameElement>(".canvas-frame");
+  const frameRect = frame?.getBoundingClientRect();
+  const iframeElementRect = iframeRenderer?.getElementRect(selectedNodeId);
+  const selected = canvas.querySelector<HTMLElement>(`[data-editor-node-id="${CSS.escape(selectedNodeId)}"]`);
+  const selectedRect = iframeElementRect && frameRect
+    ? new DOMRect(
+        frameRect.left + iframeElementRect.left,
+        frameRect.top + iframeElementRect.top,
+        iframeElementRect.width,
+        iframeElementRect.height,
+      )
+    : selected?.getBoundingClientRect();
+  if (!selectedRect) return;
+  const overlay = document.createElement("div");
+  overlay.className = "selection-overlay";
+  overlay.dataset.selectionOverlay = "";
+  overlay.style.left = `${selectedRect.left - canvasRect.left + canvas.scrollLeft}px`;
+  overlay.style.top = `${selectedRect.top - canvasRect.top + canvas.scrollTop}px`;
+  overlay.style.width = `${selectedRect.width}px`;
+  overlay.style.height = `${selectedRect.height}px`;
+  const label = document.createElement("span");
+  label.textContent = node.type;
+  overlay.append(label);
+  canvas.append(overlay);
 }
 
 document.querySelector("[data-action='add']")?.addEventListener("click", () => {
@@ -141,6 +220,9 @@ document.querySelector("[data-action='confirm-import']")?.addEventListener("clic
     importError.textContent = "Importable HTML elements were not found.";
     return;
   }
+  iframeRenderer?.dispose();
+  iframeRenderer = undefined;
+  importedPage = { srcdoc: result.srcdoc, topLevelIds: result.topLevelIds };
   editor.dispatch(result.transaction);
   importDialog.close();
   htmlSource.value = "";
@@ -148,6 +230,9 @@ document.querySelector("[data-action='confirm-import']")?.addEventListener("clic
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());
 canvas.addEventListener("pointerdown", (event) => {
+  const selected = (event.target as Element).closest<HTMLElement>("[data-editor-node-id]");
+  selectedNodeId = selected?.dataset.editorNodeId;
+  updateSelectionOverlay();
   const target = (event.target as Element).closest<HTMLElement>("[data-node-id]");
   if (!target?.dataset.nodeId) return;
   const node = editor.getSnapshot().document.nodes[target.dataset.nodeId];
@@ -168,7 +253,9 @@ canvas.addEventListener("pointerup", () => {
   const geometry = previewGeometry;
   dragSession = undefined;
   previewGeometry = undefined;
-  editor.dispatch(commands.moveNode({ nodeId: session.nodeId, parentId: "root", geometry }));
+  if (geometry.x !== session.initialGeometry.x || geometry.y !== session.initialGeometry.y) {
+    editor.dispatch(commands.moveNode({ nodeId: session.nodeId, parentId: "root", geometry }));
+  }
   editor.interaction.commitDrag();
 });
 canvas.addEventListener("pointercancel", () => {
