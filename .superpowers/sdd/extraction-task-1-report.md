@@ -105,3 +105,36 @@ pnpm test        PASS (24 tests: core 12, dom 7, demo 2, rich-text 3)
 pnpm build       PASS (4 projects)
 git diff --check PASS
 ```
+
+## Final API Surface Follow-Up
+
+### RED
+
+Extended the built-declaration test to enumerate every exported function/interface/type/class/constant in `dist/index.d.ts` and require exactly the intended three-symbol surface. The test failed with:
+
+```text
+Received:
+  RichTextController
+  RichTextControllerOptions
+  RichTextStartOptions
+  createRichTextController
+```
+
+### GREEN
+
+- Removed exported `RichTextControllerOptions`.
+- Inlined the callback shape in the public `createRichTextController` declaration.
+- Added an equivalent package-private structural options interface in `rich-text-editor.ts`.
+- Retained the private Tiptap factory seam for lifecycle exception tests.
+
+Final focused evidence:
+
+```text
+pnpm --filter @muscat/rich-text test       PASS (4/4)
+pnpm --filter @muscat/rich-text typecheck  PASS
+pnpm --filter @muscat/rich-text build      PASS
+pnpm check                                 PASS
+git diff --check                           PASS
+```
+
+The public declaration now exports exactly `createRichTextController`, `RichTextController`, and `RichTextStartOptions`; its reachable declaration graph remains Tiptap- and implementation-free.

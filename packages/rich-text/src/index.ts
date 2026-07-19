@@ -13,11 +13,9 @@ export interface RichTextController {
   dispose(): void;
 }
 
-export interface RichTextControllerOptions {
+export function createRichTextController(options: {
   readonly onCommit: (nodeId: string, richContent: string) => void;
   readonly onEditingChange: (editing: boolean) => void;
-}
-
-export function createRichTextController(options: RichTextControllerOptions): RichTextController {
+}): RichTextController {
   return createInternalRichTextController(options);
 }

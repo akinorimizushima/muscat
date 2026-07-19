@@ -41,4 +41,19 @@ describe("public declarations", () => {
     expect([...declarations.keys()].map((file) => file.split("/").at(-1))).toEqual(["index.d.ts"]);
     for (const forbidden of forbiddenPublicDetails) expect(publicGraph).not.toContain(forbidden);
   });
+
+  it("exports only the controller factory and Muscat-owned controller types", async () => {
+    const source = await readFile(join(import.meta.dirname, "../dist/index.d.ts"), "utf8");
+    const exports = [
+      ...source.matchAll(/export (?:declare )?(?:function|interface|type|class|const) (\w+)/g),
+    ]
+      .map((match) => match[1])
+      .sort();
+
+    expect(exports).toEqual([
+      "RichTextController",
+      "RichTextStartOptions",
+      "createRichTextController",
+    ]);
+  });
 });

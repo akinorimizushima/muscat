@@ -5,12 +5,17 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
 import { isSafeRichTextUrl, sanitizeRichContent } from "@muscat/dom";
-import type { RichTextController, RichTextControllerOptions } from "./index";
+import type { RichTextController } from "./index";
 import { createRichTextMenu, type RichTextMenu } from "./rich-text-menu";
 import { RICH_TEXT_STYLES } from "./rich-text-styles";
 
 interface RichTextControllerDependencies {
   readonly createEditor?: (options: ConstructorParameters<typeof Editor>[0]) => Editor;
+}
+
+interface RichTextControllerOptions {
+  readonly onCommit: (nodeId: string, richContent: string) => void;
+  readonly onEditingChange: (editing: boolean) => void;
 }
 
 const adoptedStyles = new WeakMap<
