@@ -42,7 +42,7 @@ jobs:
         run: pnpm build
 
       - name: Install Playwright Chromium
-        run: pnpm --filter @muscat/core exec playwright install --with-deps chromium
+        run: pnpm --filter @muscat/dom exec playwright install --with-deps chromium
 
       - name: Test
         run: pnpm test
