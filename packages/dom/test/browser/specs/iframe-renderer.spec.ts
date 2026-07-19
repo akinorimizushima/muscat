@@ -88,19 +88,14 @@ test("keeps the imported sample's Revenue span at its dropped position", async (
   await expect.poll(async () => (await target.boundingBox())?.y).toBeCloseTo(before.y + 40, 0);
 });
 
-test("edits leaf text and reports the text node change", async ({ page }) => {
+test("emits an edit request for a leaf element", async ({ page }) => {
   await page.goto("http://127.0.0.1:4273/");
   const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.dblclick();
-  await expect(target).toHaveAttribute("contenteditable", "plaintext-only");
-  await expect(target).toHaveCSS("cursor", "text");
-
-  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
-  await target.pressSequentially("Updated heading");
-  await target.press("Enter");
-
-  await expect(target).toHaveText("Updated heading");
-  await expect(target).not.toHaveAttribute("contenteditable", /.*/);
-  await expect(page.locator("#app")).toHaveAttribute("data-changed-content", "Updated heading");
-  await expect(page.locator("#app")).toHaveAttribute("data-changed-node-id", /^node-\d+$/);
+  await expect(page.locator("#app")).toHaveAttribute(
+    "data-edit-initial-html",
+    /Scrollable target/,
+  );
+  await expect(page.locator("#app")).toHaveAttribute("data-edit-node-id", /^node-\d+$/);
+  await expect(page.locator("#app")).toHaveAttribute("data-edit-element-id", "scroller-heading");
 });

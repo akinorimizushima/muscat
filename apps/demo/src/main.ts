@@ -94,6 +94,7 @@ const richTextController = createRichTextController({
   },
   onEditingChange(isEditing) {
     canvas.classList.toggle("is-rich-text-editing", isEditing);
+    iframeRenderer?.setEditing(isEditing);
     updateSelectionOverlay();
   },
 });
@@ -223,8 +224,8 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
     onMove(nodeId, attributes) {
       editor.dispatch(commands.setNodeAttributes({ nodeId, attributes }));
     },
-    onTextChange(nodeId, content) {
-      editor.dispatch(commands.setNodeContent({ nodeId, content }));
+    onEdit({ nodeId, element, initialHtml }) {
+      richTextController.start({ nodeId, element, initialHtml });
     },
   });
   iframeRenderer.render(importedPage.srcdoc);

@@ -90,6 +90,34 @@ test("formats a selected range in a regular node", async ({ page }) => {
   await expect(content.locator("strong")).toHaveText("Element 1");
 });
 
+test("formats a selected range inside imported HTML", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await importSample(page);
+  const target = page.frameLocator("iframe").getByRole("heading", { name: "Editable target" });
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+
+  const menu = page.frameLocator("iframe").getByRole("toolbar", { name: "Text formatting" });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: "Italic" }).click();
+  await page.locator(".stage-heading").click();
+
+  expect(pageErrors).toEqual([]);
+  await expect(menu).toHaveCount(0);
+  await expect(target.locator("em")).toHaveText("Editable target");
+  await expect(target.locator(":scope > p")).toHaveCount(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export HTML" }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  if (!path) throw new Error("Exported HTML download is unavailable");
+  const html = await readFile(path, "utf8");
+  expect(html).toMatch(/<h2[^>]*><em>Editable target<\/em><\/h2>/);
+  expect(html).not.toMatch(/<h2[^>]*><p>/);
+});
+
 test("applies regular node marks and alignment", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();

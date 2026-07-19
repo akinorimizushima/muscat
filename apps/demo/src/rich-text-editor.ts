@@ -38,10 +38,7 @@ export function createRichTextController(options: {
     if (!session) return;
     const completed = session;
     session = undefined;
-    const currentHtml = sanitizeRichContent(
-      completed.editor.getHTML(),
-      completed.element.ownerDocument,
-    );
+    const currentHtml = serializeRichContent(completed.editor, completed.element);
     completed.editor.destroy();
     completed.menu.destroy();
     completed.element.innerHTML = cancel ? completed.initialHtml : currentHtml;
@@ -81,7 +78,7 @@ export function createRichTextController(options: {
           options: { placement: "bottom", offset: 8 },
         }),
       );
-      const initialHtml = sanitizeRichContent(tiptap.getHTML(), ownerDocument);
+      const initialHtml = serializeRichContent(tiptap, startOptions.element);
       session = {
         nodeId: startOptions.nodeId,
         element: startOptions.element,
@@ -98,4 +95,46 @@ export function createRichTextController(options: {
       finish(true);
     },
   };
+}
+
+const phrasingContentHosts = new Set([
+  "ABBR",
+  "B",
+  "BUTTON",
+  "CITE",
+  "CODE",
+  "EM",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "I",
+  "KBD",
+  "LABEL",
+  "LEGEND",
+  "MARK",
+  "Q",
+  "S",
+  "SAMP",
+  "SMALL",
+  "SPAN",
+  "STRONG",
+  "SUB",
+  "SUP",
+  "TIME",
+  "U",
+  "VAR",
+]);
+
+function serializeRichContent(editor: Editor, element: HTMLElement): string {
+  const document = element.ownerDocument;
+  const html = sanitizeRichContent(editor.getHTML(), document);
+  if (!phrasingContentHosts.has(element.tagName)) return html;
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  const paragraph = container.firstElementChild;
+  if (paragraph?.tagName !== "P" || container.children.length !== 1) return html;
+  return paragraph.innerHTML;
 }
