@@ -359,8 +359,35 @@ document.querySelector("[data-action='export']")?.addEventListener("click", () =
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());
+function isInsideRichTextSession(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest(".rich-text-menu")) return true;
+  const canvasNode = target.closest<HTMLElement>("[data-node-id]");
+  return Boolean(canvasNode?.querySelector(".ProseMirror"));
+}
+
+const editingCommitPointerEvents = new WeakSet<Event>();
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (!richTextController.isEditing() || isInsideRichTextSession(event.target)) return;
+    if (event.target instanceof Node && canvas.contains(event.target))
+      editingCommitPointerEvents.add(event);
+    richTextController.finish(false);
+  },
+  true,
+);
+document.addEventListener("focusin", (event) => {
+  if (!richTextController.isEditing() || isInsideRichTextSession(event.target)) return;
+  richTextController.finish(false);
+});
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || event.isComposing || event.altKey) return;
+  if (richTextController.isEditing() && event.key === "Escape") {
+    event.preventDefault();
+    richTextController.finish(true);
+    return;
+  }
   const target = event.target;
   if (
     target instanceof Element &&
@@ -380,12 +407,8 @@ document.addEventListener("keydown", (event) => {
   else editor.redo();
 });
 canvas.addEventListener("pointerdown", (event) => {
-  if (richTextController.isEditing()) {
-    const editable = findEditableElement(event.target);
-    if (editable?.contains(event.target as Node | null)) return;
-    richTextController.finish(false);
-    return;
-  }
+  if (editingCommitPointerEvents.has(event)) return;
+  if (richTextController.isEditing()) return;
   const editable = findEditableElement(event.target);
   if (event.detail >= 2 && editable?.dataset.editorNodeId) {
     event.preventDefault();

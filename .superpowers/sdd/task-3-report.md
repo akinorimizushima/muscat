@@ -46,4 +46,36 @@ Implemented and verified the vanilla Tiptap session and selection-anchored Bubbl
 
 ## Commit
 
-- Pending at report creation; populated after commit in the task response.
+- Initial implementation: `6258bbe9f9be228b37093c13d23183446e755855`.
+- Review fix commit is reported in the task response because its SHA is not known until after this file is committed.
+
+## Review Fix Wave
+
+### RED Evidence
+
+- `playwright test ... -g "Escape is pressed in the link input|outside editor action|no-op outside commit|expanded rich text menu|applies, rejects" --workers=1`
+  - 4 failed, 1 passed.
+  - Link DOM failed with `target="_blank"` and `rel="noopener noreferrer nofollow"`.
+  - Escape in the URL input left the toolbar/session mounted (`Expected: 0`, `Received: 1`).
+  - Clicking Add element outside the canvas rendered stale `Element 1` instead of `Committed outside` and left the session active.
+  - Outside no-op exit left `stage is-rich-text-editing` set.
+- `playwright test ... -g "suppresses regular node dragging" --workers=1 --repeat-each=5`
+  - 5 failed before the final pointer-routing fix: resize width changed from 220px to 270px.
+  - Root cause was the canvas's old leaf-only session boundary ending editing on node padding, allowing the next resize gesture.
+
+### GREEN Evidence
+
+- `pnpm --filter @muscat/dom test:browser`: 24 passed in 6.2s.
+- `pnpm exec oxfmt --check apps/demo/package.json apps/demo/src/main.ts apps/demo/src/style.css apps/demo/src/rich-text-editor.ts apps/demo/src/rich-text-menu.ts packages/dom/test/browser/specs/editor.spec.ts`: all 6 matched files correctly formatted.
+- `pnpm lint`: exit 0, no warnings.
+- `pnpm --filter @muscat/demo typecheck`: exit 0.
+- `pnpm --filter @muscat/demo build`: exit 0, 78 modules transformed.
+- `playwright test ... -g "suppresses regular node dragging" --workers=1 --repeat-each=5`: 5 passed after document/canvas pointer routing was unified.
+
+### Review Fixes
+
+- Document capture commits before outside controls mutate or rerender; document focus changes also commit, while the active canvas node and body-appended toolbar/link form remain inside the session.
+- Document Escape cancels from the URL input and respects `defaultPrevented`, composition, and Alt-modified events through the existing keyboard guard.
+- Tiptap Link rendering explicitly removes `target` and `rel`.
+- Tests now cover left/center/right alignment, narrow-selection link preservation, no-op history, outside teardown, link-input cancellation, editing-time drag/resize/overlay suppression, and 390px expanded-toolbar bounds.
+- The link form uses full-row flex wrapping and shrinkable controls at narrow viewport widths.

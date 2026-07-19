@@ -220,23 +220,29 @@ h2 {
   align-items: end;
   border-left: 1px solid #555;
   display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
   gap: 4px;
   padding-left: 6px;
+  width: 100%;
 }
 .rich-text-link-form[hidden] {
   display: none;
 }
 .rich-text-link-form label {
   display: grid;
+  flex: 1 1 140px;
   font-size: 11px;
   gap: 2px;
+  min-width: 0;
 }
 .rich-text-link-form input {
   border: 1px solid #777;
   border-radius: 4px;
   font: inherit;
   height: 32px;
-  max-width: 180px;
+  max-width: 100%;
+  min-width: 0;
   padding: 0 8px;
 }
 .rich-text-link-form input[aria-invalid="true"] {

@@ -97,16 +97,22 @@ test("applies regular node marks and alignment", async ({ page }) => {
   await content.dblclick();
   const menu = page.getByRole("toolbar", { name: "Text formatting" });
 
-  for (const name of ["Italic", "Underline", "Strike", "Align center"]) {
+  for (const name of ["Italic", "Underline", "Strike"]) {
     await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await menu.getByRole("button", { name }).click();
   }
+  await menu.getByRole("button", { name: "Align center" }).click();
+  await expect(content.locator("p")).toHaveCSS("text-align", "center");
+  await menu.getByRole("button", { name: "Align left" }).click();
+  await expect(content.locator("p")).toHaveCSS("text-align", "left");
+  await menu.getByRole("button", { name: "Align right" }).click();
+  await expect(content.locator("p")).toHaveCSS("text-align", "right");
   await page.locator("[data-canvas]").click({ position: { x: 2, y: 2 } });
 
   await expect(content.locator("em")).toHaveText("Element 1");
   await expect(content.locator("u")).toHaveText("Element 1");
   await expect(content.locator("s")).toHaveText("Element 1");
-  await expect(content.locator("p")).toHaveCSS("text-align", "center");
+  await expect(content.locator("p")).toHaveCSS("text-align", "right");
 });
 
 test("applies, rejects, and removes links in a regular node", async ({ page }) => {
@@ -114,6 +120,17 @@ test("applies, rejects, and removes links in a regular node", async ({ page }) =
   await page.getByRole("button", { name: "Add element" }).click();
   const content = page.locator('[data-editor-node-id="element-1"]');
   await content.dblclick();
+  await content.evaluate((element) => {
+    const text = element.querySelector(".ProseMirror p")?.firstChild;
+    if (!text) throw new Error("Editable text was not found");
+    const selection = element.ownerDocument.getSelection();
+    const range = element.ownerDocument.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 7);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    element.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+  });
   const menu = page.getByRole("toolbar", { name: "Text formatting" });
   await menu.getByRole("button", { name: "Link" }).click();
   const input = menu.getByLabel("URL");
@@ -124,11 +141,81 @@ test("applies, rejects, and removes links in a regular node", async ({ page }) =
 
   await input.fill("https://example.com/docs");
   await menu.getByRole("button", { name: "Apply link" }).click();
-  await expect(content.locator("a")).toHaveAttribute("href", "https://example.com/docs");
+  const link = content.locator("a");
+  await expect(link).toHaveText("Element");
+  await expect(link).toHaveAttribute("href", "https://example.com/docs");
+  await expect(link).not.toHaveAttribute("target", /.+/);
+  await expect(link).not.toHaveAttribute("rel", /.+/);
+  await expect(content.locator("p")).toHaveText("Element 1");
   await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
   await menu.getByRole("button", { name: "Link" }).click();
   await menu.getByRole("button", { name: "Remove link" }).click();
   await expect(content.locator("a")).toHaveCount(0);
+});
+
+test("cancels rich text editing when Escape is pressed in the link input", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+  await menu.getByRole("button", { name: "Link" }).click();
+  const input = menu.getByLabel("URL");
+  await input.fill("https://example.com/cancelled");
+  await input.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(content).toHaveText("Element 1");
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
+});
+
+test("commits before an outside editor action and tears down the session", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await content.pressSequentially("Committed outside");
+  await page.getByRole("button", { name: "Add element" }).click();
+
+  await expect(page.locator('[data-editor-node-id="element-1"]')).toHaveText("Committed outside");
+  await expect(page.getByLabel("Node element-2")).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toHaveCount(0);
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
+});
+
+test("does not add history for a no-op outside commit", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await page.getByRole("button", { name: "Undo" }).focus();
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByLabel("Node element-1")).toHaveCount(0);
+});
+
+test("keeps the expanded rich text menu inside a 390px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+  await menu.getByRole("button", { name: "Link" }).click();
+  const bounds = await menu.boundingBox();
+  if (!bounds) throw new Error("Text formatting toolbar is not visible");
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  for (const control of [
+    menu.getByLabel("URL"),
+    menu.getByRole("button", { name: "Apply link" }),
+    menu.getByRole("button", { name: "Remove link" }),
+  ]) {
+    const controlBounds = await control.boundingBox();
+    if (!controlBounds) throw new Error("Expanded link control is not visible");
+    expect(controlBounds.x).toBeGreaterThanOrEqual(0);
+    expect(controlBounds.x + controlBounds.width).toBeLessThanOrEqual(390);
+  }
 });
 
 test("hides the regular node menu for a collapsed selection", async ({ page }) => {
@@ -175,6 +262,7 @@ test("suppresses regular node dragging while rich text is editing", async ({ pag
   const node = page.getByLabel("Node element-1");
   const content = page.locator('[data-editor-node-id="element-1"]');
   await content.dblclick();
+  await expect(page.locator("[data-selection-overlay]")).toBeHidden();
   const before = await node.boundingBox();
   if (!before) throw new Error("HTML node is not visible");
   await page.mouse.move(before.x + 30, before.y + 30);
@@ -184,6 +272,13 @@ test("suppresses regular node dragging while rich text is editing", async ({ pag
   const after = await node.boundingBox();
   expect(after?.x).toBeCloseTo(before.x, 0);
   expect(after?.y).toBeCloseTo(before.y, 0);
+  await page.mouse.move(before.x + before.width, before.y + before.height);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width + 50, before.y + before.height + 35);
+  await page.mouse.up();
+  const afterResizeAttempt = await node.boundingBox();
+  expect(afterResizeAttempt?.width).toBeCloseTo(before.width, 0);
+  expect(afterResizeAttempt?.height).toBeCloseTo(before.height, 0);
 });
 
 test("keeps the HTML selection overlay aligned while an ancestor scrolls", async ({ page }) => {

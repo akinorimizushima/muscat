@@ -62,7 +62,10 @@ export function createRichTextController(options: {
         extensions: [
           StarterKit,
           Underline,
-          Link.configure({ openOnClick: false }),
+          Link.configure({
+            openOnClick: false,
+            HTMLAttributes: { target: null, rel: null },
+          }),
           TextAlign.configure({ types: ["paragraph"], alignments: ["left", "center", "right"] }),
         ],
       });
