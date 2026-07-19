@@ -19,6 +19,7 @@ export interface EditorNode {
   readonly geometry?: Geometry;
   readonly attributes: Readonly<Record<string, string>>;
   readonly content?: string;
+  readonly richContent?: string;
 }
 
 export interface EditorDocument {

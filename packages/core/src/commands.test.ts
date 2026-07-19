@@ -45,4 +45,25 @@ describe("commands", () => {
     editor.redo();
     expect(editor.getSnapshot().document.nodes.text?.content).toBe("After");
   });
+
+  it("updates rich content as one undoable command", () => {
+    const editor = createEditor();
+    editor.dispatch(
+      commands.addNode({
+        parentId: "root",
+        node: { ...box("text"), type: "p", content: "Before" },
+      }),
+    );
+
+    editor.dispatch(
+      commands.setNodeRichContent({ nodeId: "text", richContent: "<strong>After</strong>" }),
+    );
+    expect(editor.getSnapshot().document.nodes.text?.richContent).toBe("<strong>After</strong>");
+
+    editor.undo();
+    expect(editor.getSnapshot().document.nodes.text?.richContent).toBeUndefined();
+
+    editor.redo();
+    expect(editor.getSnapshot().document.nodes.text?.richContent).toBe("<strong>After</strong>");
+  });
 });
