@@ -203,6 +203,27 @@ for (const host of ["p", "a"] as const) {
   });
 }
 
+test("does not create nested links while editing a standalone anchor host", async ({ page }) => {
+  await importHtml(page, '<a href="/original">Anchor content</a>');
+  const frame = page.frameLocator("iframe");
+  const target = frame.locator("a[data-muscat-node-id]");
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  const menu = frame.getByRole("toolbar", { name: "Text formatting" });
+  await expect(menu.getByRole("button", { name: "Link" })).toBeDisabled();
+  await menu.getByRole("button", { name: "Bold" }).click();
+  await target.press("End");
+  await page.keyboard.insertText(" https://example.com/new");
+  await page.keyboard.press("Space");
+  await page.locator(".stage-heading").click();
+
+  await expect(target.locator("a")).toHaveCount(0);
+  await expect(target.locator("strong")).toContainText("https://example.com/new");
+  const html = await exportedHtml(page);
+  expect(html).not.toMatch(/<a[^>]*>[^]*<a/i);
+  expect(html.match(/<a\b/gi)).toHaveLength(1);
+});
+
 test("cancels an imported paragraph edit without adding wrappers or duplicate content", async ({
   page,
 }) => {
@@ -249,6 +270,36 @@ test("adopts rich text styles into an iframe and removes them after editing", as
   await target.dblclick();
   await expect(frame.locator("style[data-muscat-rich-text-style]")).toHaveCount(1);
   await target.press("Escape");
+});
+
+test("does not adopt or delete a colliding imported rich text style", async ({ page }) => {
+  await importHtml(
+    page,
+    `<style data-muscat-rich-text-style>
+      .rich-text-menu { background: rgb(255, 0, 0); }
+      .rich-text-menu__button { width: 3px; height: 3px; }
+    </style><p>Collision target</p>`,
+  );
+  const frame = page.frameLocator("iframe");
+  const importedStyle = frame.locator("style[data-muscat-rich-text-style]");
+  const target = frame.locator("p[data-muscat-node-id]").filter({ hasText: "Collision target" });
+  await expect(importedStyle).toHaveCount(1);
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  const menu = frame.getByRole("toolbar", { name: "Text formatting" });
+  const bold = menu.getByRole("button", { name: "Bold" });
+
+  await expect(frame.locator("style[data-muscat-rich-text-style]")).toHaveCount(2);
+  await expect(menu).toHaveCSS("background-color", "rgb(37, 37, 37)");
+  await expect(bold).toHaveCSS("width", "32px");
+  await expect(bold).toHaveCSS("height", "32px");
+  await target.press("Escape");
+  await expect(importedStyle).toHaveCount(1);
+
+  await target.dblclick();
+  await expect(frame.locator("style[data-muscat-rich-text-style]")).toHaveCount(2);
+  await target.press("Escape");
+  await expect(importedStyle).toHaveCount(1);
 });
 
 test("cleans up when the active imported node is removed", async ({ page }) => {

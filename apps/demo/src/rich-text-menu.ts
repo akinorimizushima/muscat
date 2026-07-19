@@ -13,7 +13,12 @@ interface FormatButton {
   readonly enabled: () => boolean;
 }
 
-export function createRichTextMenu(editor: Editor, ownerDocument: Document): RichTextMenu {
+export function createRichTextMenu(
+  editor: Editor,
+  ownerDocument: Document,
+  options: { readonly supportsLinkMarks?: boolean } = {},
+): RichTextMenu {
+  const supportsLinkMarks = options.supportsLinkMarks ?? true;
   const element = ownerDocument.createElement("div");
   element.className = "rich-text-menu";
   element.setAttribute("role", "toolbar");
@@ -89,6 +94,7 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
     "Link",
     "Link",
     () => {
+      if (!supportsLinkMarks) return;
       linkForm.hidden = !linkForm.hidden;
       if (!linkForm.hidden) {
         urlInput.value = editor.getAttributes("link").href ?? "";
@@ -98,7 +104,7 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
       updatePosition();
     },
     () => editor.isActive("link"),
-    () => editor.can().chain().focus().extendMarkRange("link").run(),
+    () => supportsLinkMarks && editor.can().chain().focus().extendMarkRange("link").run(),
   );
 
   const linkForm = ownerDocument.createElement("form");

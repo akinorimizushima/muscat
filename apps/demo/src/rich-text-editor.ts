@@ -25,26 +25,27 @@ interface RichTextControllerDependencies {
   readonly createEditor?: (options: ConstructorParameters<typeof Editor>[0]) => Editor;
 }
 
-const adoptedStyleReferences = new WeakMap<Document, number>();
+const adoptedStyles = new WeakMap<
+  Document,
+  { readonly element: HTMLStyleElement; references: number }
+>();
 
 function adoptRichTextStyles(ownerDocument: Document): () => void {
   if (ownerDocument === document) return () => undefined;
-  let style = ownerDocument.querySelector<HTMLStyleElement>("style[data-muscat-rich-text-style]");
-  if (!style) {
-    style = ownerDocument.createElement("style");
-    style.dataset.muscatRichTextStyle = "";
-    style.textContent = richTextStyles;
-    ownerDocument.head.append(style);
+  let adopted = adoptedStyles.get(ownerDocument);
+  if (!adopted) {
+    const element = ownerDocument.createElement("style");
+    element.dataset.muscatRichTextStyle = "controller";
+    element.textContent = richTextStyles;
+    ownerDocument.head.append(element);
+    adopted = { element, references: 0 };
+    adoptedStyles.set(ownerDocument, adopted);
   }
-  adoptedStyleReferences.set(ownerDocument, (adoptedStyleReferences.get(ownerDocument) ?? 0) + 1);
+  adopted.references++;
   return () => {
-    const remaining = (adoptedStyleReferences.get(ownerDocument) ?? 1) - 1;
-    if (remaining > 0) {
-      adoptedStyleReferences.set(ownerDocument, remaining);
-      return;
-    }
-    adoptedStyleReferences.delete(ownerDocument);
-    style?.remove();
+    if (--adopted.references > 0) return;
+    adoptedStyles.delete(ownerDocument);
+    adopted.element.remove();
   };
 }
 
@@ -89,6 +90,7 @@ export function createRichTextController(
     start(startOptions) {
       if (session) return;
       const ownerDocument = startOptions.element.ownerDocument;
+      const supportsLinkMarks = startOptions.element.tagName !== "A";
       const safeInitialHtml = sanitizeRichContent(startOptions.initialHtml, ownerDocument);
       let tiptap: Editor | undefined;
       let menu: RichTextMenu | undefined;
@@ -101,11 +103,15 @@ export function createRichTextController(
           extensions: [
             StarterKit.configure({ link: false, underline: false }),
             Underline,
-            Link.configure({
-              openOnClick: false,
-              HTMLAttributes: { target: null, rel: null },
-              isAllowedUri: (url) => isSafeRichTextUrl(url),
-            }),
+            ...(supportsLinkMarks
+              ? [
+                  Link.configure({
+                    openOnClick: false,
+                    HTMLAttributes: { target: null, rel: null },
+                    isAllowedUri: (url) => isSafeRichTextUrl(url),
+                  }),
+                ]
+              : []),
             TextAlign.configure({
               types: ["paragraph"],
               alignments: ["left", "center", "right"],
@@ -113,7 +119,7 @@ export function createRichTextController(
           ],
         });
         releaseStyles = adoptRichTextStyles(ownerDocument);
-        menu = createRichTextMenu(tiptap, ownerDocument);
+        menu = createRichTextMenu(tiptap, ownerDocument, { supportsLinkMarks });
       } catch (error) {
         menu?.destroy();
         tiptap?.destroy();
