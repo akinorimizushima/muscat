@@ -4,6 +4,7 @@
     "noEmit": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
+      "@muscat/core": ["../core/src/index.ts"],
       "@muscat/dom": ["../dom/src/index.ts"]
     }
   },
