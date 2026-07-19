@@ -20,6 +20,9 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
   element.setAttribute("aria-label", "Text formatting");
 
   const buttons: FormatButton[] = [];
+  const updatePosition = (): void => {
+    editor.commands.setMeta("bubbleMenu", "updatePosition");
+  };
   const addButton = (
     label: string,
     text: string,
@@ -92,6 +95,7 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
         urlInput.removeAttribute("aria-invalid");
         urlInput.focus();
       }
+      updatePosition();
     },
     () => editor.isActive("link"),
     () => editor.can().chain().focus().extendMarkRange("link").run(),
@@ -128,10 +132,12 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
     urlInput.removeAttribute("aria-invalid");
     editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
     linkForm.hidden = true;
+    updatePosition();
   });
   remove.addEventListener("click", () => {
     editor.chain().focus().extendMarkRange("link").unsetLink().run();
     linkForm.hidden = true;
+    updatePosition();
   });
 
   const update = (): void => {

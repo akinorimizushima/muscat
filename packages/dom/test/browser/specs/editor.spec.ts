@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const demoUrl = "http://127.0.0.1:4174/";
 const sampleHtml = `
@@ -17,6 +17,15 @@ async function importSample(page: Page): Promise<void> {
   await page.getByLabel("HTML").fill(sampleHtml);
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await expect(page.locator('iframe[title="Imported HTML document"]')).toBeVisible();
+}
+
+async function expectVisibleFocusOutline(control: Locator): Promise<void> {
+  const outline = await control.evaluate((element) => {
+    const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+    return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+  });
+  expect(outline.style).not.toBe("none");
+  expect(outline.width).toBeGreaterThan(0);
 }
 
 test("drags HTML in real time with its selection overlay", async ({ page }) => {
@@ -282,33 +291,67 @@ for (const viewport of [
   { width: 1280, height: 800 },
   { width: 390, height: 844 },
 ]) {
-  test(`keeps the expanded rich text menu inside the ${viewport.width}px viewport near canvas edges`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(viewport);
-    await page.goto(demoUrl);
-    await page.getByRole("button", { name: "Add element" }).click();
-    const node = page.getByLabel("Node element-1");
-    await node.evaluate((element) => {
-      element.style.left = "0";
-      element.style.top = "0";
-      element.style.width = "180px";
-    });
-    const content = page.locator('[data-editor-node-id="element-1"]');
-    await content.dblclick();
-    await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
-    const menu = page.getByRole("toolbar", { name: "Text formatting" });
-    await expect(menu).toBeVisible();
-    await menu.getByRole("button", { name: "Link" }).click();
-    await expect(menu.getByLabel("URL")).toBeVisible();
+  for (const edge of ["default", "top-left", "bottom-right"] as const) {
+    test(`keeps the expanded rich text menu inside the ${viewport.width}px viewport near the ${edge} canvas edge`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(demoUrl);
+      await page.getByRole("button", { name: "Add element" }).click();
+      const node = page.getByLabel("Node element-1");
+      await node.evaluate((element, edge) => {
+        if (edge === "default") return;
+        const parentBounds = element.parentElement!.getBoundingClientRect();
+        const left = edge === "top-left" ? 0 : window.innerWidth - parentBounds.left - 180;
+        const top = edge === "top-left" ? 0 : window.innerHeight - parentBounds.top - 60;
+        element.style.left = `${Math.max(0, left)}px`;
+        element.style.top = `${Math.max(0, top)}px`;
+        element.style.width = "180px";
+        element.style.height = "60px";
+      }, edge);
+      const content = page.locator('[data-editor-node-id="element-1"]');
+      await content.dblclick();
+      await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+      const menu = page.getByRole("toolbar", { name: "Text formatting" });
+      await expect(menu).toBeVisible();
+      await menu.getByRole("button", { name: "Link" }).click();
+      await expect(menu.getByLabel("URL")).toBeVisible();
 
-    const bounds = await menu.boundingBox();
-    if (!bounds) throw new Error("Text formatting toolbar is not visible");
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.y).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
-    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
-  });
+      const bounds = await menu.boundingBox();
+      if (!bounds) throw new Error("Text formatting toolbar is not visible");
+      await expect(menu).toHaveCSS("position", "fixed");
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+
+      const controls = [menu.getByLabel("URL"), ...(await menu.getByRole("button").all())];
+      const controlBounds = await Promise.all(controls.map((control) => control.boundingBox()));
+      for (const rect of controlBounds) {
+        if (!rect) throw new Error("An expanded rich text control is not visible");
+        expect(rect.x).toBeGreaterThanOrEqual(0);
+        expect(rect.y).toBeGreaterThanOrEqual(0);
+        expect(rect.x + rect.width).toBeLessThanOrEqual(viewport.width);
+        expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
+        expect(rect.x).toBeGreaterThanOrEqual(bounds.x);
+        expect(rect.y).toBeGreaterThanOrEqual(bounds.y);
+        expect(rect.x + rect.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+        expect(rect.y + rect.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+      }
+      for (let first = 0; first < controlBounds.length; first++) {
+        for (let second = first + 1; second < controlBounds.length; second++) {
+          const a = controlBounds[first]!;
+          const b = controlBounds[second]!;
+          const doNotOverlap =
+            a.x + a.width <= b.x ||
+            b.x + b.width <= a.x ||
+            a.y + a.height <= b.y ||
+            b.y + b.height <= a.y;
+          expect(doNotOverlap).toBe(true);
+        }
+      }
+    });
+  }
 }
 
 test("supports keyboard traversal and preserves the selected range when applying a link", async ({
@@ -352,11 +395,16 @@ test("supports keyboard traversal and preserves the selected range when applying
   await page.keyboard.press("Enter");
   const input = menu.getByLabel("URL");
   await expect(input).toBeFocused();
+  await expectVisibleFocusOutline(input);
   await input.fill("https://example.com/keyboard");
   await page.keyboard.press("Tab");
-  await expect(menu.getByRole("button", { name: "Apply link" })).toBeFocused();
+  const applyLink = menu.getByRole("button", { name: "Apply link" });
+  await expect(applyLink).toBeFocused();
+  await expectVisibleFocusOutline(applyLink);
   await page.keyboard.press("Tab");
-  await expect(menu.getByRole("button", { name: "Remove link" })).toBeFocused();
+  const removeLink = menu.getByRole("button", { name: "Remove link" });
+  await expect(removeLink).toBeFocused();
+  await expectVisibleFocusOutline(removeLink);
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Enter");
 

@@ -77,7 +77,14 @@ export function createRichTextController(options: {
           element: menu.element,
           appendTo: () => ownerDocument.body,
           shouldShow: ({ from, to }) => from !== to,
-          options: { placement: "bottom", offset: 8 },
+          options: {
+            strategy: "fixed",
+            placement: "top",
+            offset: 8,
+            flip: true,
+            shift: true,
+            inline: true,
+          },
         }),
       );
       const initialHtml = serializeRichContent(tiptap, startOptions.element);

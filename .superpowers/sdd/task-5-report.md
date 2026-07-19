@@ -2,10 +2,11 @@
 
 ## Status
 
-- Added explicit desktop (`1280x800`) and mobile (`390x844`) Bubble Menu viewport coverage near the top-left canvas edge.
+- Added explicit desktop (`1280x800`) and mobile (`390x844`) Bubble Menu viewport coverage at the default, top-left, and bottom-right canvas positions.
 - Added keyboard-only traversal coverage for all eight toolbar buttons and all three link-form controls.
-- Verified visible `:focus-visible` styling, link application to the preserved full selection, and focus return to Tiptap's `.ProseMirror` editor.
-- No positioning or focus implementation defect was observed, so production rich-text code was unchanged.
+- Verified visible computed focus outlines on every toolbar button, the URL input, Apply link, and Remove link; link application to the preserved full selection; and focus return to Tiptap's `.ProseMirror` editor.
+- Verified the expanded toolbar and every visible control remain inside both the viewport and toolbar, with pairwise non-overlapping control rectangles at both tested viewport sizes.
+- Manual mobile verification exposed stale absolute positioning after the link form expanded. The Bubble Menu now uses fixed/top positioning with offset, flip, shift, and inline handling, and receives `updatePosition` meta after the form expands or collapses.
 
 ## Automated Verification
 
@@ -14,7 +15,7 @@
 - `pnpm format`: completed on 54 files; formatter-only changes were required in the implementation plan and `packages/core/src/commands.ts`.
 - `pnpm check`: format check, lint, and typechecks for core, DOM, and demo passed with no warnings from the checks.
 - `pnpm test`: 7 test files and 19 unit tests passed (core: 6 files/12 tests; DOM: 1 file/7 tests).
-- `pnpm test:browser`: 31 browser tests passed.
+- Initial `pnpm test:browser`: 31 browser tests passed. After review hardening added four edge cases, the full suite passed 35 browser tests.
 - `pnpm build`: core TypeScript build, DOM TypeScript build, and demo Vite build passed; Vite transformed 78 modules.
 - `git diff --check`: passed.
 
@@ -28,6 +29,8 @@
 ## Files
 
 - `.superpowers/sdd/task-5-report.md`: this report.
+- `apps/demo/src/rich-text-editor.ts`: fixed/top Floating UI positioning with offset, flip, shift, and inline handling.
+- `apps/demo/src/rich-text-menu.ts`: Bubble Menu position updates after link-form expansion and collapse.
 - `packages/dom/test/browser/specs/editor.spec.ts`: viewport and keyboard regression coverage.
 - `docs/superpowers/plans/2026-07-19-tiptap-rich-text.md`: formatter-only changes.
 - `packages/core/src/commands.ts`: formatter-only changes.
@@ -36,3 +39,13 @@
 
 - Manual in-app-browser screenshot verification remains outstanding because no in-app browser was available.
 - Tiptap continues to use its paragraph schema temporarily while editing phrasing-only hosts. Browser coverage confirms committed/exported heading HTML contains no invalid paragraph wrapper; no visual or behavioral defect was observed in automated verification.
+
+## Review Follow-up
+
+- Added computed visible-outline assertions for the URL input, Apply link, and Remove link after reaching each through keyboard traversal.
+- Added geometry assertions for all eight toolbar buttons, Apply link, Remove link, and the URL input after form expansion at `1280x800` and `390x844`.
+- Each control is asserted inside the viewport and aggregate toolbar. Every control rectangle is compared pairwise; touching edges are allowed, overlapping rectangles fail.
+- Confirmed RED with the mobile default-position test: expected fixed positioning, received absolute positioning.
+- `pnpm --filter @muscat/dom test:browser -g "viewport|supports keyboard traversal" --workers=1`: 7 passed after the positioning fix.
+- `pnpm test:browser`: 35 passed after the positioning fix.
+- `pnpm check`: formatting, lint, and all three workspace typechecks passed after the positioning fix.
