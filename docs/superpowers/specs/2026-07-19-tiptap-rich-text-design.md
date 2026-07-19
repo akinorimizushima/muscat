@@ -20,9 +20,11 @@ The first release supports bold, italic, underline, strike-through, left/center/
 
 During import, inline markup inside an editable leaf element becomes that element's `richContent`. Block elements continue to be represented by the existing Muscat node tree. During export, sanitized `richContent` is emitted as ordinary HTML without editor metadata.
 
-### Editing controller
+### Rich-text package
 
-`apps/demo` uses the vanilla Tiptap `Editor` API. A single rich text editing controller owns the active Tiptap instance, editing snapshot, toolbar, commit, cancellation, and cleanup. It can mount against either the main document or the imported iframe document.
+`@muscat/rich-text` is the reusable editing adapter. It owns the active editing snapshot, toolbar, commit, cancellation, cross-document stylesheet adoption, and cleanup. Tiptap is an internal implementation detail of this package and no public interface exposes Tiptap or ProseMirror types.
+
+The package depends on `@muscat/dom` for rich HTML sanitization and URL policy. It can mount against either the main document or an imported iframe document. `apps/demo` only creates the controller, translates commits into Muscat commands, and coordinates canvas interactions.
 
 Only one editor instance may be active. Starting another edit first commits the current edit. Editing completion destroys the Tiptap instance and removes transient editor UI.
 
@@ -65,9 +67,15 @@ If the target node no longer exists, the controller aborts without dispatching. 
 
 Cleanup is idempotent so iframe reloads, node removal, editor disposal, and repeated focus events cannot dispatch duplicate commits or leave event listeners behind.
 
-## Dependencies
+## Package Boundaries
 
-The demo adds Tiptap packages for the headless editor, StarterKit marks, underline, link, text alignment, Bubble Menu, and its Floating UI peer dependency. Tiptap packages stay out of `@muscat/core`; reusable DOM sanitization and rendering remain in `@muscat/dom`.
+The dependency direction is:
+
+```text
+@muscat/core <- @muscat/dom <- @muscat/rich-text <- @muscat/demo
+```
+
+`@muscat/rich-text` contains Tiptap, StarterKit marks, underline, link, text alignment, Bubble Menu, Floating UI, the rich-text controller, menu construction, and its shared stylesheet. `@muscat/dom` remains usable for parsing, rendering, and HTML import/export without installing Tiptap. `@muscat/core` remains DOM-free. The demo contains no direct Tiptap imports.
 
 ## Testing
 
@@ -82,6 +90,12 @@ The demo adds Tiptap packages for the headless editor, StarterKit marks, underli
 - Import, render, and export supported rich HTML without losing formatting.
 - Remove blocked elements, attributes, declarations, and URL schemes.
 - Render legacy `content` when `richContent` is absent.
+
+### Rich-text tests
+
+- Exercise controller initialization, commit, cancellation, and exceptional cleanup through only the public `@muscat/rich-text` API.
+- Verify the package declaration exports no Tiptap or ProseMirror types.
+- Verify both the main document and foreign iframe documents receive the same menu behavior and stylesheet.
 
 ### Playwright tests
 
