@@ -57,3 +57,11 @@
 - Added a computed WCAG contrast regression for both action buttons. RED measured `1.02:1` against the required `4.5:1` minimum.
 - Link action buttons now have explicit dark text on a light background, a visible green focus outline, and an explicit readable disabled treatment without reduced opacity.
 - `pnpm --filter @muscat/dom test:browser -g "viewport|supports keyboard traversal" --workers=1`: 7 passed after the contrast fix.
+
+## Console Warning Follow-up
+
+- Manual console verification exposed Tiptap's `Duplicate extension names found: ['underline']` warning on each rich-text session start.
+- Added browser coverage that captures console warnings during editing startup and rejects duplicate-extension warnings.
+- RED captured the exact duplicate `underline` warning.
+- StarterKit's bundled underline is now disabled while the explicit Underline extension remains configured for the toolbar workflow.
+- `pnpm --filter @muscat/dom test:browser -g "duplicate extension warnings|formats a selected range" --workers=1`: 3 passed after the fix, covering warning-free startup plus regular and iframe formatting.

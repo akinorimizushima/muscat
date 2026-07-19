@@ -106,6 +106,18 @@ test("edits HTML text", async ({ page }) => {
   await expect(content.locator(".ProseMirror")).toHaveCount(0);
 });
 
+test("starts rich text editing without duplicate extension warnings", async ({ page }) => {
+  const warnings: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "warning") warnings.push(message.text());
+  });
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  await page.locator('[data-editor-node-id="element-1"]').dblclick();
+
+  expect(warnings.filter((warning) => warning.includes("Duplicate extension names"))).toEqual([]);
+});
+
 test("formats a selected range in a regular node", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();

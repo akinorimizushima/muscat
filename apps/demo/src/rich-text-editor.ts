@@ -59,7 +59,7 @@ export function createRichTextController(options: {
         element: startOptions.element,
         content: safeInitialHtml,
         extensions: [
-          StarterKit.configure({ link: false }),
+          StarterKit.configure({ link: false, underline: false }),
           Underline,
           Link.configure({
             openOnClick: false,
