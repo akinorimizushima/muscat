@@ -28,6 +28,28 @@ async function expectVisibleFocusOutline(control: Locator): Promise<void> {
   expect(outline.width).toBeGreaterThan(0);
 }
 
+async function expectReadableTextContrast(control: Locator): Promise<void> {
+  const contrast = await control.evaluate((element) => {
+    const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+    const luminance = (color: string): number => {
+      const channels = color
+        .match(/[\d.]+/g)
+        ?.slice(0, 3)
+        .map(Number);
+      if (!channels || channels.length !== 3) throw new Error(`Unsupported color: ${color}`);
+      const [red, green, blue] = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    };
+    const foreground = luminance(style.color);
+    const background = luminance(style.backgroundColor);
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
+}
+
 test("drags HTML in real time with its selection overlay", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();
@@ -401,10 +423,12 @@ test("supports keyboard traversal and preserves the selected range when applying
   const applyLink = menu.getByRole("button", { name: "Apply link" });
   await expect(applyLink).toBeFocused();
   await expectVisibleFocusOutline(applyLink);
+  await expectReadableTextContrast(applyLink);
   await page.keyboard.press("Tab");
   const removeLink = menu.getByRole("button", { name: "Remove link" });
   await expect(removeLink).toBeFocused();
   await expectVisibleFocusOutline(removeLink);
+  await expectReadableTextContrast(removeLink);
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Enter");
 

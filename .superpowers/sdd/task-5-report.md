@@ -49,3 +49,11 @@
 - `pnpm --filter @muscat/dom test:browser -g "viewport|supports keyboard traversal" --workers=1`: 7 passed after the positioning fix.
 - `pnpm test:browser`: 35 passed after the positioning fix.
 - `pnpm check`: formatting, lint, and all three workspace typechecks passed after the positioning fix.
+
+## Visual Contrast Follow-up
+
+- Post-positioning manual verification at `390x844` confirmed the fixed toolbar at `x=0..374`, all 11 controls inside the viewport, and no overlaps.
+- The same screenshot exposed unreadable Apply link and Remove link labels caused by inherited white text on a white background.
+- Added a computed WCAG contrast regression for both action buttons. RED measured `1.02:1` against the required `4.5:1` minimum.
+- Link action buttons now have explicit dark text on a light background, a visible green focus outline, and an explicit readable disabled treatment without reduced opacity.
+- `pnpm --filter @muscat/dom test:browser -g "viewport|supports keyboard traversal" --workers=1`: 7 passed after the contrast fix.

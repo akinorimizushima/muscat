@@ -250,11 +250,22 @@ h2 {
   outline: 1px solid #ff6b6b;
 }
 .rich-text-link-form button {
+  background: #fffdf7;
   border: 0;
   border-radius: 4px;
+  color: #252019;
   font-size: 11px;
   height: 32px;
   padding: 0 8px;
+}
+.rich-text-link-form button:focus-visible {
+  outline: 2px solid #147d68;
+  outline-offset: 1px;
+}
+.rich-text-link-form button:disabled {
+  background: #e5e2da;
+  color: #59544c;
+  opacity: 1;
 }
 .selection-overlay {
   border: 2px solid #147d68;
