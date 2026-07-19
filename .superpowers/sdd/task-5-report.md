@@ -22,8 +22,10 @@
 ## Visual Verification
 
 - `pnpm dev -- --port 5173 --strictPort` started Vite at `http://127.0.0.1:5175/`; ports 5173 and 5174 were already occupied, and the forwarded literal `--` prevented strict-port enforcement.
-- The in-app browser backend was unavailable in this session (`agent.browsers.list()` returned `[]`). Per the browser-control workflow, no unrelated browser backend was substituted.
-- Consequently, no desktop/mobile screenshots or additional manual visual observations could be captured. Automated browser assertions cover toolbar visibility, viewport containment, non-overlapping visible controls, active/focus states, regular-node behavior, and iframe behavior; browser tests completed without page-error regressions in covered workflows.
+- Desktop `1280x800` was manually inspected before the final positioning change: the toolbar was visible, controls were `32x32`, no controls overlapped, and the menu remained within the viewport. Automated default/top-left/bottom-right edge coverage is authoritative for desktop behavior after the final code changes.
+- Mobile `390x844` was manually inspected after the final positioning and contrast changes: the fixed menu occupied `x=0..374`, all 11 visible controls were within the viewport with no pairwise overlaps, and Apply link/Remove link rendered as `rgb(37, 32, 25)` on `rgb(255, 253, 247)`.
+- A fresh in-app browser tab after `f6f0ac8` had no console warnings or errors.
+- Desktop and mobile screenshots were observed in-app but were not saved as repository artifacts.
 - The temporary demo server was stopped before completion.
 
 ## Files
@@ -37,7 +39,7 @@
 
 ## Concerns
 
-- Manual in-app-browser screenshot verification remains outstanding because no in-app browser was available.
+- Desktop manual inspection preceded the final positioning change; the current desktop result is established by automated edge and geometry coverage rather than a post-change saved screenshot.
 - Tiptap continues to use its paragraph schema temporarily while editing phrasing-only hosts. Browser coverage confirms committed/exported heading HTML contains no invalid paragraph wrapper; no visual or behavioral defect was observed in automated verification.
 
 ## Review Follow-up
@@ -65,3 +67,13 @@
 - RED captured the exact duplicate `underline` warning.
 - StarterKit's bundled underline is now disabled while the explicit Underline extension remains configured for the toolbar workflow.
 - `pnpm --filter @muscat/dom test:browser -g "duplicate extension warnings|formats a selected range" --workers=1`: 3 passed after the fix, covering warning-free startup plus regular and iframe formatting.
+
+## Final Post-f6f0ac8 Gate
+
+- Starting HEAD: `f6f0ac8` with a clean worktree.
+- `pnpm check`: passed; formatting matched all 54 files, lint passed with warnings denied, and core/DOM/demo typechecks passed.
+- `pnpm test`: 7 test files and 19 unit tests passed (core: 6 files/12 tests; DOM: 1 file/7 tests).
+- `pnpm test:browser`: 36 browser tests passed.
+- `pnpm build`: core and DOM TypeScript builds passed; demo Vite build passed with 78 modules transformed.
+- `git diff --check`: passed.
+- `git status --short`: empty before this report-only update.
