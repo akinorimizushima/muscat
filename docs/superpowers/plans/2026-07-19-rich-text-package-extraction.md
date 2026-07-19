@@ -42,13 +42,13 @@
 
 - [ ] **Step 1: Write a failing public-package test**
 
-Create the package test by moving the two controller lifecycle tests from `apps/demo/src/rich-text-editor.test.ts`. Import only from `./index`:
+Create the package test by moving the two controller lifecycle tests from `apps/demo/src/rich-text-editor.test.ts`. Import the package-private implementation module so the Tiptap editor-factory seam is not exposed by the public entry point:
 
 ```ts
-import { createRichTextController } from "./index";
+import { createRichTextController } from "./rich-text-editor";
 ```
 
-Keep the existing initialization rollback and throwing-commit assertions unchanged.
+Keep the existing initialization rollback and throwing-commit assertions unchanged. Public API coverage and declaration inspection use `./index` separately in Task 3.
 
 - [ ] **Step 2: Verify RED**
 
