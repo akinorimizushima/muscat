@@ -5,7 +5,8 @@
     "types": ["vite/client"],
     "paths": {
       "@muscat/core": ["../../packages/core/src/index.ts"],
-      "@muscat/dom": ["../../packages/dom/src/index.ts"]
+      "@muscat/dom": ["../../packages/dom/src/index.ts"],
+      "@muscat/rich-text": ["../../packages/rich-text/src/index.ts"]
     }
   },
   "include": ["src"]

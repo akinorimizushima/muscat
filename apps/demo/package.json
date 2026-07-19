@@ -7,22 +7,14 @@
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.8.0",
     "@muscat/core": "workspace:*",
     "@muscat/dom": "workspace:*",
-    "@tiptap/core": "^3.28.0",
-    "@tiptap/extension-bubble-menu": "^3.28.0",
-    "@tiptap/extension-link": "^3.28.0",
-    "@tiptap/extension-text-align": "^3.28.0",
-    "@tiptap/extension-underline": "^3.28.0",
-    "@tiptap/starter-kit": "^3.28.0"
+    "@muscat/rich-text": "workspace:*"
   },
   "devDependencies": {
-    "happy-dom": "^18.0.1",
     "vite": "^7.1.3"
   }
 }

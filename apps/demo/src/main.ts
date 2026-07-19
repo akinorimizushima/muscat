@@ -18,9 +18,8 @@ import {
   importHtml,
   type IframeRenderer,
 } from "@muscat/dom";
-import { createRichTextController } from "./rich-text-editor";
+import { createRichTextController } from "@muscat/rich-text";
 import "./style.css";
-import "./rich-text.css";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("App root was not found");

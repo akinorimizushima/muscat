@@ -66,6 +66,21 @@ async function expectReadableTextContrast(control: Locator): Promise<void> {
   expect(contrast).toBeGreaterThanOrEqual(4.5);
 }
 
+test("loads rich text through the package boundary without demo implementation modules", async ({
+  page,
+  request,
+}) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  await page.locator('[data-editor-node-id="element-1"]').dblclick();
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toBeVisible();
+
+  for (const module of ["rich-text-editor.ts", "rich-text-menu.ts"]) {
+    const response = await request.get(`${demoUrl}src/${module}`);
+    expect(response.headers()["content-type"]).toContain("text/html");
+  }
+});
+
 test("drags HTML in real time with its selection overlay", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();

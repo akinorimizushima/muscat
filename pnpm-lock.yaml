@@ -26,37 +26,16 @@ importers:
 
   apps/demo:
     dependencies:
-      '@floating-ui/dom':
-        specifier: ^1.8.0
-        version: 1.8.0
       '@muscat/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@muscat/dom':
         specifier: workspace:*
         version: link:../../packages/dom
-      '@tiptap/core':
-        specifier: ^3.28.0
-        version: 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/extension-bubble-menu':
-        specifier: ^3.28.0
-        version: 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-link':
-        specifier: ^3.28.0
-        version: 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-text-align':
-        specifier: ^3.28.0
-        version: 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-underline':
-        specifier: ^3.28.0
-        version: 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/starter-kit':
-        specifier: ^3.28.0
-        version: 3.28.0
+      '@muscat/rich-text':
+        specifier: workspace:*
+        version: link:../../packages/rich-text
     devDependencies:
-      happy-dom:
-        specifier: ^18.0.1
-        version: 18.0.1
       vite:
         specifier: ^7.1.3
         version: 7.3.6(@types/node@24.13.3)
