@@ -105,4 +105,36 @@ pnpm build                            PASS (4 projects)
 git diff --check                      PASS
 ```
 
-No additional dependency was introduced for the ownership guard.
+That lexer-based iteration introduced no additional dependency; the parser follow-up below supersedes it.
+
+## TypeScript Parser Follow-Up
+
+### RED
+
+Added a dynamic import nested inside template interpolation and changed the synthetic workspace package to put runtime imports in root `index.ts` and `custom/runtime.mjs`, with no `src` directory.
+
+The focused run failed both gaps:
+
+```text
+template-interpolation dynamic import  NOT DETECTED
+root/custom runtime modules            NOT SCANNED
+```
+
+### GREEN
+
+- Replaced the focused lexer with TypeScript 7's supported `typescript/unstable/sync` parser and `typescript/unstable/ast` traversal APIs.
+- Traverse `ImportDeclaration`, `ExportDeclaration`, `ImportEqualsDeclaration` with external module references, and dynamic-import `CallExpression` nodes.
+- AST traversal reaches dynamic imports inside template expressions while naturally ignoring comments and ordinary strings.
+- Scan `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs` across each discovered package tree rather than assuming `src`.
+- Exclude `node_modules`, `dist`, and `coverage` directories plus test, spec, config, and declaration artifacts.
+- Added TypeScript as an explicit `@muscat/rich-text` dev dependency because the ownership test imports its parser APIs.
+
+Updated verification:
+
+```text
+pnpm --filter @muscat/rich-text test  PASS (18/18)
+pnpm check                            PASS (4 typechecks)
+pnpm test                             PASS (37 tests: core 12, dom 7, rich-text 18)
+pnpm build                            PASS (4 projects)
+git diff --check                      PASS
+```

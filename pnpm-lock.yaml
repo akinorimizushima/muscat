@@ -105,6 +105,9 @@ importers:
       happy-dom:
         specifier: ^18.0.1
         version: 18.0.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@24.13.3)(happy-dom@18.0.1)

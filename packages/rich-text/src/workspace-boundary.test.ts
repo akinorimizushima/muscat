@@ -3,85 +3,46 @@
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import {
+  isCallExpression,
+  isExportDeclaration,
+  isExternalModuleReference,
+  isImportDeclaration,
+  isImportEqualsDeclaration,
+  isStringLiteral,
+  SyntaxKind,
+  type Node,
+} from "typescript/unstable/ast";
+import { API } from "typescript/unstable/sync";
 import { afterEach, describe, expect, it } from "vitest";
 
 const workspaceRoot = join(import.meta.dirname, "../../..");
 const temporaryRoots: string[] = [];
 
-function forbiddenModuleSpecifiers(source: string): string[] {
-  const tokens: Array<{ kind: "word" | "string" | "punctuation"; value: string }> = [];
-  for (let index = 0; index < source.length;) {
-    const character = source[index]!;
-    if (/\s/.test(character)) {
-      index++;
-      continue;
-    }
-    if (character === "/" && source[index + 1] === "/") {
-      index = source.indexOf("\n", index + 2);
-      if (index < 0) break;
-      continue;
-    }
-    if (character === "/" && source[index + 1] === "*") {
-      index = source.indexOf("*/", index + 2);
-      if (index < 0) break;
-      index += 2;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      let value = "";
-      const quote = character;
-      for (index++; index < source.length; index++) {
-        const current = source[index]!;
-        if (current === "\\") {
-          value += source[index + 1] ?? "";
-          index++;
-        } else if (current === quote) {
-          index++;
-          break;
-        } else value += current;
-      }
-      tokens.push({ kind: "string", value });
-      continue;
-    }
-    if (character === "`") {
-      for (index++; index < source.length; index++) {
-        if (source[index] === "\\") index++;
-        else if (source[index] === "`") {
-          index++;
-          break;
-        }
-      }
-      continue;
-    }
-    const word = source.slice(index).match(/^[A-Za-z_$][\w$]*/)?.[0];
-    if (word) {
-      tokens.push({ kind: "word", value: word });
-      index += word.length;
-      continue;
-    }
-    tokens.push({ kind: "punctuation", value: character });
-    index++;
+function forbiddenModuleSpecifiers(file: string): string[] {
+  const api = new API();
+  const snapshot = api.updateSnapshot({ openFiles: [file] });
+  const sourceFile = snapshot.getDefaultProjectForFile(file)?.program.getSourceFile(file);
+  if (!sourceFile) {
+    api.close();
+    throw new Error(`TypeScript could not parse ${file}`);
   }
-
   const specifiers: string[] = [];
-  const record = (token: (typeof tokens)[number] | undefined): void => {
-    if (token?.kind === "string" && /^@(?:tiptap|floating-ui)\//.test(token.value))
-      specifiers.push(token.value);
+  const record = (node: Node | undefined): void => {
+    if (node && isStringLiteral(node) && /^@(?:tiptap|floating-ui)\//.test(node.text))
+      specifiers.push(node.text);
   };
-  for (let index = 0; index < tokens.length; index++) {
-    if (tokens[index]?.value === "import") {
-      if (tokens[index + 1]?.kind === "string") record(tokens[index + 1]);
-      else if (tokens[index + 1]?.value === "(") record(tokens[index + 2]);
-      else {
-        const from = tokens.slice(index + 1).findIndex((token) => token.value === "from");
-        if (from >= 0) record(tokens[index + from + 2]);
-      }
-    }
-    if (tokens[index]?.value === "export") {
-      const from = tokens.slice(index + 1).findIndex((token) => token.value === "from");
-      if (from >= 0) record(tokens[index + from + 2]);
-    }
-  }
+  const visit = (node: Node): void => {
+    if (isImportDeclaration(node) || isExportDeclaration(node)) record(node.moduleSpecifier);
+    if (isImportEqualsDeclaration(node) && isExternalModuleReference(node.moduleReference))
+      record(node.moduleReference.expression);
+    if (isCallExpression(node) && node.expression.kind === SyntaxKind.ImportKeyword)
+      record(node.arguments[0]);
+    node.forEachChild(visit);
+  };
+  visit(sourceFile);
+  snapshot.dispose();
+  api.close();
   return specifiers;
 }
 
@@ -125,29 +86,24 @@ async function discoverWorkspacePackageDirectories(root: string): Promise<string
 }
 
 async function runtimeModuleFiles(packageDirectory: string): Promise<string[]> {
-  const sourceDirectory = join(packageDirectory, "src");
-  try {
-    const files = await findFiles(sourceDirectory, "__never_exact_module_name__");
-    void files;
-  } catch {
-    return [];
-  }
   const modules: string[] = [];
   const visit = async (directory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (entry.name === "node_modules" || entry.name === "dist") continue;
+      if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "coverage")
+        continue;
       const path = join(directory, entry.name);
       if (entry.isDirectory()) await visit(path);
       else if (
-        /\.(?:[cm]?[jt]sx?)$/.test(entry.name) &&
-        !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(entry.name) &&
-        !entry.name.endsWith(".d.ts")
+        /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) &&
+        !/\.(?:test|spec)\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) &&
+        !/(?:^|[.-])config\.(?:ts|js|mjs|cjs)$/.test(entry.name) &&
+        !/\.d\.(?:ts|mts|cts)$/.test(entry.name)
       )
         modules.push(path);
     }
   };
-  await visit(sourceDirectory);
-  return modules;
+  await visit(packageDirectory);
+  return modules.sort();
 }
 
 async function workspaceOwnershipViolations(root: string): Promise<string[]> {
@@ -172,7 +128,7 @@ async function workspaceOwnershipViolations(root: string): Promise<string[]> {
         if (/^@(?:tiptap|floating-ui)\//.test(dependency))
           violations.push(`${manifestPath}: dependency ${dependency}`);
       for (const file of await runtimeModuleFiles(directory)) {
-        for (const specifier of forbiddenModuleSpecifiers(await readFile(file, "utf8")))
+        for (const specifier of forbiddenModuleSpecifiers(file))
           violations.push(`${file}: import ${specifier}`);
       }
     }
@@ -192,31 +148,43 @@ describe("rich-text workspace ownership", () => {
     ['export { Editor } from "@tiptap/core";', "@tiptap/core"],
     ['export * from "@tiptap/core";', "@tiptap/core"],
     ['const editor = await import("@tiptap/core");', "@tiptap/core"],
-  ])("detects forbidden module syntax in %s", (source, specifier) => {
-    expect(forbiddenModuleSpecifiers(source)).toEqual([specifier]);
+    ['const template = `value: ${import("@tiptap/core")}`;', "@tiptap/core"],
+    ['import Editor = require("@tiptap/core");', "@tiptap/core"],
+  ])("detects forbidden module syntax in %s", async (source, specifier) => {
+    const root = await mkdtemp(join(tmpdir(), "muscat-module-"));
+    temporaryRoots.push(root);
+    const file = join(root, "fixture.ts");
+    await writeFile(file, source);
+    expect(forbiddenModuleSpecifiers(file)).toEqual([specifier]);
   });
 
-  it("ignores comments and ordinary strings", () => {
-    expect(
-      forbiddenModuleSpecifiers(`
+  it("ignores comments and ordinary strings", async () => {
+    const root = await mkdtemp(join(tmpdir(), "muscat-module-"));
+    temporaryRoots.push(root);
+    const file = join(root, "fixture.ts");
+    await writeFile(
+      file,
+      `
         // import "@tiptap/core";
         const example = 'import("@floating-ui/dom")';
-      `),
-    ).toEqual([]);
+      `,
+    );
+    expect(forbiddenModuleSpecifiers(file)).toEqual([]);
   });
 
   it("discovers a newly added workspace package", async () => {
     const root = await mkdtemp(join(tmpdir(), "muscat-workspace-"));
     temporaryRoots.push(root);
-    await mkdir(join(root, "apps/new-package/src"), { recursive: true });
+    await mkdir(join(root, "apps/new-package/custom"), { recursive: true });
     await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n");
     await writeFile(
       join(root, "apps/new-package/package.json"),
       '{"name":"new-package","dependencies":{"@tiptap/core":"1.0.0"}}',
     );
+    await writeFile(join(root, "apps/new-package/index.ts"), 'void import("@floating-ui/dom");');
     await writeFile(
-      join(root, "apps/new-package/src/index.ts"),
-      'void import("@floating-ui/dom");',
+      join(root, "apps/new-package/custom/runtime.mjs"),
+      'import "@tiptap/extension-link";',
     );
 
     expect(await discoverWorkspacePackageDirectories(root)).toEqual([
@@ -224,7 +192,8 @@ describe("rich-text workspace ownership", () => {
     ]);
     expect(await workspaceOwnershipViolations(root)).toEqual([
       `${join(root, "apps/new-package/package.json")}: dependency @tiptap/core`,
-      `${join(root, "apps/new-package/src/index.ts")}: import @floating-ui/dom`,
+      `${join(root, "apps/new-package/custom/runtime.mjs")}: import @tiptap/extension-link`,
+      `${join(root, "apps/new-package/index.ts")}: import @floating-ui/dom`,
     ]);
   });
 
