@@ -46,12 +46,14 @@
 ### Task 1: Undoable Rich Content in Core
 
 **Files:**
+
 - Modify: `packages/core/src/model.ts`
 - Modify: `packages/core/src/commands.ts`
 - Modify: `packages/core/src/transaction.ts`
 - Test: `packages/core/src/commands.test.ts`
 
 **Interfaces:**
+
 - Produces: `EditorNode.richContent?: string`
 - Produces: `commands.setNodeRichContent({ nodeId, richContent }): SetNodeRichContentCommand`
 - Produces: command type `node.setRichContent`
@@ -148,6 +150,7 @@ git commit -m "feat(core): add undoable rich content"
 ### Task 2: Sanitized Rich HTML DOM Boundary
 
 **Files:**
+
 - Create: `packages/dom/src/rich-content.ts`
 - Create: `packages/dom/src/rich-content.test.ts`
 - Modify: `packages/dom/src/create-dom-node.ts`
@@ -156,6 +159,7 @@ git commit -m "feat(core): add undoable rich content"
 - Modify: `packages/dom/package.json`
 
 **Interfaces:**
+
 - Consumes: `EditorNode.richContent?: string`
 - Produces: `sanitizeRichContent(html: string, document?: Document): string`
 - Produces: `appendRichContent(element: HTMLElement, html: string): void`
@@ -176,9 +180,7 @@ describe("sanitizeRichContent", () => {
       sanitizeRichContent(
         '<p style="text-align: center; color: red"><strong><u>A</u></strong> <a href="/docs">B</a></p>',
       ),
-    ).toBe(
-      '<p style="text-align: center"><strong><u>A</u></strong> <a href="/docs">B</a></p>',
-    );
+    ).toBe('<p style="text-align: center"><strong><u>A</u></strong> <a href="/docs">B</a></p>');
   });
 
   it("removes executable markup and unsafe links", () => {
@@ -207,7 +209,13 @@ const SAFE_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
 
 export function isSafeRichTextUrl(value: string): boolean {
   const trimmed = value.trim();
-  if (trimmed.startsWith("#") || trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("../")) return true;
+  if (
+    trimmed.startsWith("#") ||
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../")
+  )
+    return true;
   try {
     return SAFE_SCHEMES.has(new URL(trimmed, "https://muscat.invalid").protocol);
   } catch {
@@ -279,6 +287,7 @@ git commit -m "feat(dom): sanitize and render rich content"
 ### Task 3: Headless Tiptap Session and Bubble Menu
 
 **Files:**
+
 - Create: `apps/demo/src/rich-text-menu.ts`
 - Create: `apps/demo/src/rich-text-editor.ts`
 - Modify: `apps/demo/src/main.ts`
@@ -288,6 +297,7 @@ git commit -m "feat(dom): sanitize and render rich content"
 - Test: `packages/dom/test/browser/specs/editor.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `sanitizeRichContent(html, document)` and `commands.setNodeRichContent(...)`
 - Produces: `createRichTextController(options): RichTextController`
 - Produces: `RichTextController.start({ nodeId, element, initialHtml }): void`
@@ -427,6 +437,7 @@ git commit -m "feat(demo): add Tiptap floating text toolbar"
 ### Task 4: Iframe Editing Through the Shared Controller
 
 **Files:**
+
 - Modify: `packages/dom/src/iframe-renderer.ts`
 - Modify: `apps/demo/src/main.ts`
 - Modify: `packages/dom/test/browser/harness/main.ts`
@@ -434,6 +445,7 @@ git commit -m "feat(demo): add Tiptap floating text toolbar"
 - Modify: `packages/dom/test/browser/specs/editor.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `RichTextController.start(...)`
 - Produces: `IframeRendererOptions.onEdit?: (request: IframeEditRequest) => void`
 - Produces: `IframeEditRequest = { nodeId, element, initialHtml }`
@@ -521,6 +533,7 @@ git commit -m "feat(dom): support Tiptap editing in iframes"
 ### Task 5: Final Accessibility, Visual, and Regression Verification
 
 **Files:**
+
 - Modify if failures require it: `apps/demo/src/rich-text-menu.ts`
 - Modify if failures require it: `apps/demo/src/rich-text-editor.ts`
 - Modify if failures require it: `apps/demo/src/main.ts`
@@ -528,6 +541,7 @@ git commit -m "feat(dom): support Tiptap editing in iframes"
 - Modify if failures require it: `packages/dom/test/browser/specs/editor.spec.ts`
 
 **Interfaces:**
+
 - Consumes: complete rich text feature from Tasks 1-4.
 - Produces: verified desktop/mobile UI and clean repository checks.
 

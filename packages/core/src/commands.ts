@@ -73,9 +73,7 @@ export const commands = {
   setNodeContent(command: Omit<SetNodeContentCommand, "type">): SetNodeContentCommand {
     return { type: "node.setContent", ...command };
   },
-  setNodeRichContent(
-    command: Omit<SetNodeRichContentCommand, "type">,
-  ): SetNodeRichContentCommand {
+  setNodeRichContent(command: Omit<SetNodeRichContentCommand, "type">): SetNodeRichContentCommand {
     return { type: "node.setRichContent", ...command };
   },
 };

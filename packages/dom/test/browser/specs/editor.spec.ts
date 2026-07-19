@@ -278,28 +278,91 @@ test("does not add history for a no-op outside commit", async ({ page }) => {
   await expect(page.getByLabel("Node element-1")).toHaveCount(0);
 });
 
-test("keeps the expanded rich text menu inside a 390px viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 390, height: 844 },
+]) {
+  test(`keeps the expanded rich text menu inside the ${viewport.width}px viewport near canvas edges`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto(demoUrl);
+    await page.getByRole("button", { name: "Add element" }).click();
+    const node = page.getByLabel("Node element-1");
+    await node.evaluate((element) => {
+      element.style.left = "0";
+      element.style.top = "0";
+      element.style.width = "180px";
+    });
+    const content = page.locator('[data-editor-node-id="element-1"]');
+    await content.dblclick();
+    await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    const menu = page.getByRole("toolbar", { name: "Text formatting" });
+    await expect(menu).toBeVisible();
+    await menu.getByRole("button", { name: "Link" }).click();
+    await expect(menu.getByLabel("URL")).toBeVisible();
+
+    const bounds = await menu.boundingBox();
+    if (!bounds) throw new Error("Text formatting toolbar is not visible");
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+  });
+}
+
+test("supports keyboard traversal and preserves the selected range when applying a link", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();
   const content = page.locator('[data-editor-node-id="element-1"]');
   await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
   const menu = page.getByRole("toolbar", { name: "Text formatting" });
-  await menu.getByRole("button", { name: "Link" }).click();
-  const bounds = await menu.boundingBox();
-  if (!bounds) throw new Error("Text formatting toolbar is not visible");
-  expect(bounds.x).toBeGreaterThanOrEqual(0);
-  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
-  for (const control of [
-    menu.getByLabel("URL"),
-    menu.getByRole("button", { name: "Apply link" }),
-    menu.getByRole("button", { name: "Remove link" }),
-  ]) {
-    const controlBounds = await control.boundingBox();
-    if (!controlBounds) throw new Error("Expanded link control is not visible");
-    expect(controlBounds.x).toBeGreaterThanOrEqual(0);
-    expect(controlBounds.x + controlBounds.width).toBeLessThanOrEqual(390);
+  await expect(menu).toBeVisible();
+
+  const bold = menu.getByRole("button", { name: "Bold" });
+  for (
+    let attempts = 0;
+    attempts < 30 &&
+    !(await bold.evaluate((element) => element === element.ownerDocument.activeElement));
+    attempts++
+  ) {
+    await page.keyboard.press("Tab");
   }
+  for (const name of [
+    "Bold",
+    "Italic",
+    "Underline",
+    "Strike",
+    "Align left",
+    "Align center",
+    "Align right",
+    "Link",
+  ]) {
+    const control = menu.getByRole("button", { name });
+    await expect(control).toBeFocused();
+    await expect(control).toHaveCSS("outline-style", "solid");
+    if (name === "Link") break;
+    await page.keyboard.press("Tab");
+  }
+
+  await page.keyboard.press("Enter");
+  const input = menu.getByLabel("URL");
+  await expect(input).toBeFocused();
+  await input.fill("https://example.com/keyboard");
+  await page.keyboard.press("Tab");
+  await expect(menu.getByRole("button", { name: "Apply link" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(menu.getByRole("button", { name: "Remove link" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Enter");
+
+  await expect(content.locator(".ProseMirror")).toBeFocused();
+  await expect(content.locator("a")).toHaveText("Element 1");
+  await expect(content.locator("a")).toHaveAttribute("href", "https://example.com/keyboard");
 });
 
 test("hides the regular node menu for a collapsed selection", async ({ page }) => {
