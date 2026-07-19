@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+const demoUrl = "http://127.0.0.1:4174/";
 const primaryModifier = process.platform === "darwin" ? "Meta" : "Control";
 
 test("undoes and redoes editor changes with keyboard shortcuts", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();
   await expect(page.locator("[data-status]")).toHaveText("1 element");
 
@@ -21,7 +22,7 @@ test("undoes and redoes editor changes with keyboard shortcuts", async ({ page }
 });
 
 test("leaves undo shortcuts to focused form controls", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(demoUrl);
   await page.getByRole("button", { name: "Import HTML" }).click();
   const source = page.getByLabel("HTML");
   await source.fill("<span>Revenue</span>");

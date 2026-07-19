@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("exports the editor document as clean standalone HTML", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:4273/");
   const exported = await page.locator("#exported-html").inputValue();
 
   expect(exported).toMatch(/^<!doctype html>/i);
@@ -25,7 +25,7 @@ test("exports the editor document as clean standalone HTML", async ({ page }) =>
 });
 
 test("keeps the selection overlay aligned when an iframe parent scrolls", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:4273/");
   const frame = page.frameLocator("iframe");
   const target = frame.getByText("Scrollable target");
   await target.click();
@@ -52,7 +52,7 @@ test("keeps the selection overlay aligned when an iframe parent scrolls", async 
 });
 
 test("moves an iframe element and its selection overlay during drag", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:4273/");
   const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.click();
   await expect(target).toHaveCSS("cursor", "move");
@@ -73,7 +73,7 @@ test("moves an iframe element and its selection overlay during drag", async ({ p
 });
 
 test("keeps the imported sample's Revenue span at its dropped position", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:4273/");
   const target = page.frameLocator("iframe").getByText("Revenue", { exact: true });
   await target.click();
   const before = await target.boundingBox();
@@ -89,7 +89,7 @@ test("keeps the imported sample's Revenue span at its dropped position", async (
 });
 
 test("edits leaf text and reports the text node change", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:4273/");
   const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.dblclick();
   await expect(target).toHaveAttribute("contenteditable", "plaintext-only");

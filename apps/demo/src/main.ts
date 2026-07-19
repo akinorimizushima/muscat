@@ -84,6 +84,9 @@ let resizingImportedElement = false;
 let resizeInitialAttributes: Readonly<Record<string, string>> | undefined;
 let previewGeometry: Geometry | undefined;
 let selectedNodeId: string | undefined;
+let editing:
+  | { readonly element: HTMLElement; readonly nodeId: string; readonly initialContent: string }
+  | undefined;
 let importedPage: { readonly srcdoc: string; readonly topLevelIds: readonly string[] } | undefined;
 let iframeRenderer: IframeRenderer | undefined;
 
@@ -276,6 +279,40 @@ function updateSelectionOverlay(): void {
   canvas.append(overlay);
 }
 
+function finishEditing(cancel: boolean): void {
+  if (!editing) return;
+  const completed = editing;
+  editing = undefined;
+  const content = cancel ? completed.initialContent : (completed.element.textContent ?? "");
+  completed.element.removeAttribute("contenteditable");
+  if (!cancel && content !== completed.initialContent) {
+    editor.dispatch(commands.setNodeContent({ nodeId: completed.nodeId, content }));
+  } else {
+    completed.element.textContent = completed.initialContent;
+  }
+}
+
+function startEditing(element: HTMLElement, nodeId: string): void {
+  if (editing) return;
+  const node = editor.getSnapshot().document.nodes[nodeId];
+  if (!node || node.children.length > 0) return;
+  editing = { element, nodeId, initialContent: element.textContent ?? "" };
+  element.setAttribute("contenteditable", "plaintext-only");
+  element.focus();
+  document.getSelection()?.selectAllChildren(element);
+}
+
+function findEditableElement(target: EventTarget | null): HTMLElement | undefined {
+  if (!(target instanceof Element)) return undefined;
+  return (
+    target.closest<HTMLElement>("[data-editor-node-id]") ??
+    target
+      .closest<HTMLElement>("[data-node-id]")
+      ?.querySelector<HTMLElement>("[data-editor-node-id]") ??
+    undefined
+  );
+}
+
 document.querySelector("[data-action='add']")?.addEventListener("click", () => {
   const number = nextNodeNumber++;
   editor.dispatch(
@@ -345,6 +382,14 @@ document.addEventListener("keydown", (event) => {
   else editor.redo();
 });
 canvas.addEventListener("pointerdown", (event) => {
+  if (editing?.element.contains(event.target as Node | null)) return;
+  if (editing) finishEditing(false);
+  const editable = findEditableElement(event.target);
+  if (event.detail >= 2 && editable?.dataset.editorNodeId) {
+    event.preventDefault();
+    startEditing(editable, editable.dataset.editorNodeId);
+    return;
+  }
   const resizeHandle = (event.target as Element).closest<HTMLElement>("[data-resize-handle]");
   const resizeNodeId = resizeHandle?.dataset.nodeId;
   const resizeHandleName = resizeHandle?.dataset.resizeHandle as ResizeHandle | undefined;
@@ -380,8 +425,29 @@ canvas.addEventListener("pointerdown", (event) => {
   target.setPointerCapture(event.pointerId);
   dragSession = startDragSession(node.id, { x: event.clientX, y: event.clientY }, node.geometry);
   previewGeometry = node.geometry;
-  editor.interaction.startDrag();
 });
+canvas.addEventListener("dblclick", (event) => {
+  const element = findEditableElement(event.target);
+  const nodeId = element?.dataset.editorNodeId;
+  if (!element || !nodeId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  startEditing(element, nodeId);
+});
+canvas.addEventListener("keydown", (event) => {
+  if (!editing) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    finishEditing(true);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    finishEditing(false);
+  }
+});
+canvas.addEventListener("focusout", (event) => {
+  if (editing?.element === event.target) finishEditing(false);
+});
+canvas.addEventListener("scroll", updateSelectionOverlay);
 canvas.addEventListener("pointermove", (event) => {
   if (resizeSession) {
     previewGeometry = getResizeGeometry(resizeSession, { x: event.clientX, y: event.clientY });
@@ -390,6 +456,7 @@ canvas.addEventListener("pointermove", (event) => {
     return;
   }
   if (!dragSession) return;
+  if (editor.getSnapshot().interaction !== "dragging") editor.interaction.startDrag();
   previewGeometry = getDragGeometry(dragSession, { x: event.clientX, y: event.clientY });
   render();
 });
@@ -428,10 +495,12 @@ canvas.addEventListener("pointerup", () => {
   const geometry = previewGeometry;
   dragSession = undefined;
   previewGeometry = undefined;
-  if (geometry.x !== session.initialGeometry.x || geometry.y !== session.initialGeometry.y) {
+  const moved =
+    geometry.x !== session.initialGeometry.x || geometry.y !== session.initialGeometry.y;
+  if (moved) {
     editor.dispatch(commands.moveNode({ nodeId: session.nodeId, parentId: "root", geometry }));
+    editor.interaction.commitDrag();
   }
-  editor.interaction.commitDrag();
 });
 canvas.addEventListener("pointercancel", () => {
   if (resizeSession) {
@@ -448,7 +517,7 @@ canvas.addEventListener("pointercancel", () => {
   if (!dragSession) return;
   dragSession = undefined;
   previewGeometry = undefined;
-  editor.interaction.cancelDrag();
+  if (editor.getSnapshot().interaction === "dragging") editor.interaction.cancelDrag();
   render();
 });
 
