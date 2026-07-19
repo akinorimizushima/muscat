@@ -11,6 +11,7 @@ import { RICH_TEXT_STYLES } from "./rich-text-styles";
 
 interface RichTextControllerDependencies {
   readonly createEditor?: (options: ConstructorParameters<typeof Editor>[0]) => Editor;
+  readonly createMenu?: typeof createRichTextMenu;
 }
 
 interface RichTextControllerOptions {
@@ -56,6 +57,16 @@ export function createRichTextController(
         releaseStyles: () => void;
       }
     | undefined;
+
+  const contains = (target: EventTarget | null): boolean => {
+    if (!session) return false;
+    const ownerWindow = session.element.ownerDocument.defaultView;
+    return Boolean(
+      ownerWindow &&
+      target instanceof ownerWindow.Node &&
+      (session.element.contains(target) || session.menu.element.contains(target)),
+    );
+  };
 
   const finish = (cancel: boolean): void => {
     if (!session) return;
@@ -108,7 +119,9 @@ export function createRichTextController(
           ],
         });
         releaseStyles = adoptRichTextStyles(ownerDocument);
-        menu = createRichTextMenu(tiptap, ownerDocument, { supportsLinkMarks });
+        menu = (dependencies.createMenu ?? createRichTextMenu)(tiptap, ownerDocument, {
+          supportsLinkMarks,
+        });
       } catch (error) {
         menu?.destroy();
         tiptap?.destroy();
@@ -144,11 +157,8 @@ export function createRichTextController(
         throw error;
       }
       const initialHtml = serializeRichContent(tiptap, startOptions.element);
-      const isInsideSession = (target: EventTarget | null): boolean =>
-        target instanceof ownerDocument.defaultView!.Node &&
-        (startOptions.element.contains(target) || menu.element.contains(target));
       const handlePointerDown = (event: PointerEvent): void => {
-        if (!isInsideSession(event.target)) finish(false);
+        if (!contains(event.target)) finish(false);
       };
       const handleKeyDown = (event: KeyboardEvent): void => {
         if (event.key !== "Escape") return;
@@ -179,6 +189,7 @@ export function createRichTextController(
     },
     finish,
     isEditing: () => session !== undefined,
+    contains,
     dispose() {
       finish(true);
     },

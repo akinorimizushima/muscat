@@ -364,18 +364,21 @@ document.querySelector("[data-action='export']")?.addEventListener("click", () =
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());
-function isInsideRichTextSession(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  if (target.closest(".rich-text-menu")) return true;
-  const canvasNode = target.closest<HTMLElement>("[data-node-id]");
-  return Boolean(canvasNode?.querySelector(".ProseMirror"));
+function isInsideSelectedCanvasNode(target: EventTarget | null): boolean {
+  if (!selectedNodeId || !(target instanceof Element)) return false;
+  return Boolean(target.closest(`[data-node-id="${CSS.escape(selectedNodeId)}"]`));
 }
 
 const editingCommitPointerEvents = new WeakSet<Event>();
 document.addEventListener(
   "pointerdown",
   (event) => {
-    if (!richTextController.isEditing() || isInsideRichTextSession(event.target)) return;
+    if (
+      !richTextController.isEditing() ||
+      richTextController.contains(event.target) ||
+      isInsideSelectedCanvasNode(event.target)
+    )
+      return;
     if (event.target instanceof Node && canvas.contains(event.target))
       editingCommitPointerEvents.add(event);
     richTextController.finish(false);
@@ -383,7 +386,7 @@ document.addEventListener(
   true,
 );
 document.addEventListener("focusin", (event) => {
-  if (!richTextController.isEditing() || isInsideRichTextSession(event.target)) return;
+  if (!richTextController.isEditing() || richTextController.contains(event.target)) return;
   richTextController.finish(false);
 });
 document.addEventListener("keydown", (event) => {

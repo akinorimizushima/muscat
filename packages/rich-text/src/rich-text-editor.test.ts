@@ -1,10 +1,67 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRichTextController } from "./rich-text-editor";
+import { createRichTextMenu } from "./rich-text-menu";
 
 afterEach(() => document.body.replaceChildren());
 
 describe("createRichTextController", () => {
+  it("reports editor and menu descendants only while the main-document session is active", () => {
+    const element = document.createElement("p");
+    element.innerHTML = "Original";
+    document.body.append(element);
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    let menuElement: HTMLElement | undefined;
+    const controller = createRichTextController(
+      { onCommit: vi.fn(), onEditingChange: vi.fn() },
+      {
+        createMenu(...args) {
+          const menu = createRichTextMenu(...args);
+          menuElement = menu.element;
+          return menu;
+        },
+      },
+    );
+
+    expect(controller.contains(element)).toBe(false);
+    controller.start({ nodeId: "paragraph", element, initialHtml: "Original" });
+    expect(controller.contains(element.querySelector(".ProseMirror")!.firstChild)).toBe(true);
+    expect(controller.contains(menuElement!.firstChild)).toBe(true);
+    expect(controller.contains(outside)).toBe(false);
+
+    controller.dispose();
+    expect(controller.contains(element)).toBe(false);
+  });
+
+  it("reports descendants from an iframe owner document", () => {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const iframeDocument = iframe.contentDocument!;
+    const element = iframeDocument.createElement("p");
+    element.innerHTML = "Original";
+    iframeDocument.body.append(element);
+    let menuElement: HTMLElement | undefined;
+    const controller = createRichTextController(
+      { onCommit: vi.fn(), onEditingChange: vi.fn() },
+      {
+        createMenu(...args) {
+          const menu = createRichTextMenu(...args);
+          menuElement = menu.element;
+          return menu;
+        },
+      },
+    );
+
+    controller.start({ nodeId: "paragraph", element, initialHtml: "Original" });
+    expect(controller.contains(element.querySelector(".ProseMirror")!.firstChild)).toBe(true);
+    expect(controller.contains(menuElement!.firstChild)).toBe(true);
+    expect(controller.contains(document.body)).toBe(false);
+
+    controller.finish(true);
+    expect(controller.contains(element)).toBe(false);
+  });
+
   it("cleans up the session and propagates a commit error", () => {
     const element = document.createElement("p");
     element.innerHTML = "Original";

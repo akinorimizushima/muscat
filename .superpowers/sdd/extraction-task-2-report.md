@@ -32,4 +32,16 @@
 
 ## Concerns
 
-- `main.ts` still recognizes `.rich-text-menu` and `.ProseMirror` while deciding whether pointer/focus events are inside the active application session. This is application lifecycle integration rather than editor implementation or styling, and removing it would regress outside-click behavior without a replacement public containment API.
+- No known boundary concern remains. The controller now owns session containment, including cross-document node checks, so the demo no longer recognizes editor-private selectors.
+
+## Boundary Follow-up
+
+- Added `RichTextController.contains(target)` without adding a public symbol; the public export count remains exactly three and generated declarations remain Tiptap-free.
+- RED: package tests failed to compile because `contains` did not exist, while the browser boundary assertion found `.rich-text-menu` and `.ProseMirror` in served demo source.
+- GREEN: package tests cover editor and menu descendants in the main document and an iframe document, outside targets, idle state, and disposed/finished state.
+- The implementation checks `target` against the active element's owner-window `Node`, avoiding cross-realm `instanceof` failures.
+- Demo pointer and focus lifecycle handling now calls `richTextController.contains(event.target)` with no private selector coupling.
+- Full browser verification exposed that a pointer on the selected canvas-node wrapper sits outside the package-owned editor element and could prematurely finish editing before resize suppression. The demo now separately recognizes its own selected `[data-node-id]` boundary for pointer handling without reintroducing editor-private selectors.
+- `pnpm --filter @muscat/dom test:browser --grep "package boundary|suppresses regular node dragging" --workers=1`: 2 tests passed after the application-boundary fix.
+- `pnpm --filter @muscat/rich-text test:unit`: 2 files and 6 tests passed.
+- `pnpm --filter @muscat/dom test:browser --grep "package boundary|formats a selected range|adopts rich text styles|nested links" --workers=1`: 5 tests passed.

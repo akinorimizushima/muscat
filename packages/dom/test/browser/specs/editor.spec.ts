@@ -79,6 +79,9 @@ test("loads rich text through the package boundary without demo implementation m
     const response = await request.get(`${demoUrl}src/${module}`);
     expect(response.headers()["content-type"]).toContain("text/html");
   }
+  const mainSource = await (await request.get(`${demoUrl}src/main.ts`)).text();
+  expect(mainSource).not.toContain(".rich-text-menu");
+  expect(mainSource).not.toContain(".ProseMirror");
 });
 
 test("drags HTML in real time with its selection overlay", async ({ page }) => {

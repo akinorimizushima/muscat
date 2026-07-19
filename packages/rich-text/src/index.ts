@@ -10,6 +10,7 @@ export interface RichTextController {
   start(options: RichTextStartOptions): void;
   finish(cancel: boolean): void;
   isEditing(): boolean;
+  contains(target: EventTarget | null): boolean;
   dispose(): void;
 }
 
