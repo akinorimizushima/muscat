@@ -71,3 +71,38 @@ Expected Playwright server warnings only: `NO_COLOR` is ignored when `FORCE_COLO
 ## Commit
 
 - Recorded in the task response because a commit cannot contain its own SHA.
+
+## Ownership Guard Follow-Up
+
+### RED
+
+Added syntax fixtures for default imports, named imports, side-effect imports, named re-exports, star re-exports, and dynamic `import()`, plus a temporary workspace containing a newly configured package with forbidden dependency and dynamic-import bypasses.
+
+The legacy guard failed three focused cases:
+
+```text
+side-effect import     NOT DETECTED
+dynamic import()       NOT DETECTED
+new workspace package NOT DISCOVERED
+```
+
+### GREEN
+
+- Parse the `packages` section of `pnpm-workspace.yaml` and recursively discover `package.json` files under every configured workspace root.
+- Exclude `node_modules` and `dist` during discovery.
+- Inspect dependency, dev, peer, and optional dependency sections for `@tiptap/*` and `@floating-ui/*` ownership.
+- Recursively scan runtime TS/JS modules in every package except `@muscat/rich-text`, excluding tests, specs, declaration files, generated output, and dependencies.
+- Use a focused lexical scanner that skips comments, ordinary quoted strings, and template literals, then recognizes static imports, side-effect imports, export-from forms, and string-literal dynamic imports.
+- Verify a newly configured synthetic package is discovered and both its manifest dependency and dynamic import are reported.
+
+Updated verification:
+
+```text
+pnpm --filter @muscat/rich-text test  PASS (16/16)
+pnpm check                            PASS (4 typechecks)
+pnpm test                             PASS (35 tests: core 12, dom 7, rich-text 16)
+pnpm build                            PASS (4 projects)
+git diff --check                      PASS
+```
+
+No additional dependency was introduced for the ownership guard.
