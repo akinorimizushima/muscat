@@ -6,6 +6,7 @@ import {
   type Transaction,
 } from "@muscat/core";
 import { createDomNode } from "./create-dom-node";
+import { sanitizeRichContent } from "./rich-content";
 
 const BLOCKED_ELEMENTS = new Set([
   "script",
@@ -18,6 +19,37 @@ const BLOCKED_ELEMENTS = new Set([
   "embed",
 ]);
 const URL_ATTRIBUTES = new Set(["href", "src", "poster", "action", "formaction"]);
+const RICH_INLINE_ELEMENTS = new Set(["br", "strong", "em", "u", "s", "a"]);
+const BLOCK_ELEMENTS = new Set([
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "details",
+  "dialog",
+  "div",
+  "dl",
+  "fieldset",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hr",
+  "main",
+  "nav",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "table",
+  "ul",
+]);
 
 export interface HtmlImportResult {
   readonly transaction: Transaction;
@@ -48,6 +80,8 @@ export function exportHtml(
     if (child) exportedDocument.body.append(createDomNode(child, editorDocument.nodes));
   }
 
+  sanitizeDocument(exportedDocument, false);
+
   return `<!doctype html>\n${exportedDocument.documentElement.outerHTML}`;
 }
 
@@ -77,6 +111,18 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
     }
     element.setAttribute("data-muscat-node-id", id);
 
+    const descendants = [...element.querySelectorAll("*")];
+    const hasBlockChildren = descendants.some((child) =>
+      BLOCK_ELEMENTS.has(child.tagName.toLowerCase()),
+    );
+    const hasOnlyRichInlineChildren =
+      descendants.length > 0 &&
+      descendants.every((child) => RICH_INLINE_ELEMENTS.has(child.tagName.toLowerCase()));
+    const richContent =
+      hasBlockChildren || !hasOnlyRichInlineChildren
+        ? undefined
+        : sanitizeRichContent(element.innerHTML, parsed);
+
     commandsList.push(
       commands.addNode({
         parentId,
@@ -86,9 +132,12 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
           layout: geometry ? "free" : "flow",
           ...(geometry ? { geometry } : {}),
           attributes,
+          ...(richContent === undefined ? {} : { richContent }),
         },
       }),
     );
+
+    if (richContent !== undefined) return id;
 
     // Take a snapshot because this loop inserts marker comments into the live NodeList.
     // oxlint-disable-next-line unicorn/no-useless-spread
@@ -165,7 +214,7 @@ function isSafeUrl(value: string): boolean {
   return !normalized.startsWith("javascript:") && !normalized.startsWith("data:text/html");
 }
 
-function sanitizeDocument(document: Document): void {
+function sanitizeDocument(document: Document, editorDocument = true): void {
   document.querySelectorAll("script, iframe, object, embed").forEach((element) => element.remove());
   document.querySelectorAll("*").forEach((element) => {
     // Take a snapshot because removing entries mutates the live NamedNodeMap.
@@ -175,8 +224,14 @@ function sanitizeDocument(document: Document): void {
       if (name.startsWith("on") || name === "srcdoc") element.removeAttribute(attribute.name);
       if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value))
         element.removeAttribute(attribute.name);
+      if (!editorDocument && name === "data-muscat-node-id")
+        element.removeAttribute(attribute.name);
     }
   });
+  document
+    .querySelectorAll("style[data-muscat-editor-style]")
+    .forEach((element) => element.remove());
+  if (!editorDocument) return;
   const editorStyle = document.createElement("style");
   editorStyle.dataset.muscatEditorStyle = "";
   editorStyle.textContent = `
