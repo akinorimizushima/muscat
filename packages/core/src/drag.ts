@@ -1,4 +1,4 @@
-import type { Geometry, NodeId } from "./model.js";
+import type { Geometry, NodeId } from "./model";
 
 export interface Point {
   readonly x: number;

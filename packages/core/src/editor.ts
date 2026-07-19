@@ -1,7 +1,7 @@
-import type { Command } from "./commands.js";
-import { createInteractionController, type InteractionController } from "./interaction.js";
-import { createDocument, type EditorDocument } from "./model.js";
-import { applyTransaction, canApply, type Transaction } from "./transaction.js";
+import type { Command } from "./commands";
+import { createInteractionController, type InteractionController } from "./interaction";
+import { createDocument, type EditorDocument } from "./model";
+import { applyTransaction, canApply, type Transaction } from "./transaction";
 
 export interface EditorSnapshot {
   readonly document: EditorDocument;

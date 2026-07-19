@@ -6,21 +6,16 @@ export {
   type RemoveNodeCommand,
   type SetNodeAttributesCommand,
   type SetNodeContentCommand,
-} from "./commands.js";
-export {
-  createEditor,
-  type CreateEditorOptions,
-  type Editor,
-  type EditorSnapshot,
-} from "./editor.js";
-export { getDragGeometry, startDragSession, type DragSession, type Point } from "./drag.js";
+} from "./commands";
+export { createEditor, type CreateEditorOptions, type Editor, type EditorSnapshot } from "./editor";
+export { getDragGeometry, startDragSession, type DragSession, type Point } from "./drag";
 export {
   getResizeGeometry,
   startResizeSession,
   type ResizeHandle,
   type ResizeSession,
-} from "./resize.js";
-export { type InteractionController, type InteractionMode } from "./interaction.js";
+} from "./resize";
+export { type InteractionController, type InteractionMode } from "./interaction";
 export {
   createDocument,
   type EditorDocument,
@@ -28,7 +23,7 @@ export {
   type Geometry,
   type LayoutMode,
   type NodeId,
-} from "./model.js";
+} from "./model";
 export {
   applyCommand,
   applyTransaction,
@@ -36,4 +31,4 @@ export {
   CommandError,
   type AppliedTransaction,
   type Transaction,
-} from "./transaction.js";
+} from "./transaction";

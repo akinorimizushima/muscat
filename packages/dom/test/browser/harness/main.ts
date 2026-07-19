@@ -1,5 +1,5 @@
 import { commands, createEditor } from "@muscat/core";
-import { createIframeRenderer, exportHtml, importHtml } from "../../../src/index.js";
+import { createIframeRenderer, exportHtml, importHtml } from "../../../src/index";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("Missing app root");

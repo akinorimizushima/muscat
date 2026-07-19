@@ -1,5 +1,5 @@
-import type { Geometry, NodeId } from "./model.js";
-import type { Point } from "./drag.js";
+import type { Geometry, NodeId } from "./model";
+import type { Point } from "./drag";
 
 export type ResizeHandle = "north-west" | "north-east" | "south-east" | "south-west";
 

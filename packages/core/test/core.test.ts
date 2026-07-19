@@ -7,7 +7,7 @@ import {
   startDragSession,
   startResizeSession,
   type EditorNode,
-} from "../src/index.js";
+} from "../src/index";
 import { describe, expect, it } from "vitest";
 
 const box = (id: string): Omit<EditorNode, "parentId" | "children"> => ({

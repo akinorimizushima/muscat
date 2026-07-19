@@ -1,5 +1,5 @@
-import type { Command } from "./commands.js";
-import type { EditorDocument, EditorNode, NodeId } from "./model.js";
+import type { Command } from "./commands";
+import type { EditorDocument, EditorNode, NodeId } from "./model";
 
 export interface Transaction {
   readonly commands: readonly Command[];

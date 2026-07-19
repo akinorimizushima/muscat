@@ -1,4 +1,4 @@
-import type { EditorNode, Geometry, NodeId } from "./model.js";
+import type { EditorNode, Geometry, NodeId } from "./model";
 
 export interface AddNodeCommand {
   readonly type: "node.add";
