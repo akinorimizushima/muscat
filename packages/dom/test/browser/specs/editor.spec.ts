@@ -360,6 +360,22 @@ test("commits an iframe edit on an outside iframe pointer without selecting it",
   expect(pageErrors).toEqual([]);
 });
 
+test("undoes and redoes rich text edits inside imported HTML", async ({ page }) => {
+  await importSample(page);
+  const frame = page.frameLocator("iframe");
+  const target = frame.locator("h2");
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await target.pressSequentially("Changed in iframe");
+  await frame.locator("main").click({ position: { x: 4, y: 4 } });
+  await expect(target).toHaveText("Changed in iframe");
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(target).toHaveText("Editable target");
+  await page.getByRole("button", { name: "Redo" }).click();
+  await expect(target).toHaveText("Changed in iframe");
+});
+
 test("cancels an iframe edit with Escape from the link input", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));

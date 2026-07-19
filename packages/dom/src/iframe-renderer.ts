@@ -208,9 +208,12 @@ export function createIframeRenderer(
         }
         for (const [name, value] of Object.entries(node.attributes))
           element.setAttribute(name, value);
-        if (node.richContent !== undefined && (!editing || element !== editingElement)) {
+        if (editing && element === editingElement) continue;
+        if (node.richContent !== undefined) {
           element.replaceChildren();
           appendRichContent(element, node.richContent);
+        } else if (!hasManagedChildren(element, node, nodes)) {
+          restoreManagedChildren(element, node, nodes);
         }
       }
     },
@@ -247,4 +250,52 @@ function findTextNode(document: Document, nodeId: string): Text | undefined {
     }
   }
   return undefined;
+}
+
+function hasManagedChildren(
+  element: HTMLElement,
+  node: EditorNode,
+  nodes: Readonly<Record<string, EditorNode>>,
+): boolean {
+  if (node.children.length === 0) return element.childNodes.length === 0;
+  return node.children.every((childId) => {
+    const child = nodes[childId];
+    if (!child) return true;
+    if (child.type !== "#text")
+      return [...element.children].some(
+        (candidate) => candidate.getAttribute("data-muscat-node-id") === childId,
+      );
+    return [...element.childNodes].some(
+      (candidate) =>
+        candidate.nodeType === Node.COMMENT_NODE &&
+        (candidate as Comment).data === `muscat-text:${childId}` &&
+        candidate.nextSibling?.nodeType === Node.TEXT_NODE,
+    );
+  });
+}
+
+function restoreManagedChildren(
+  element: HTMLElement,
+  node: EditorNode,
+  nodes: Readonly<Record<string, EditorNode>>,
+): void {
+  const document = element.ownerDocument;
+  element.replaceChildren(
+    ...node.children.flatMap((childId): Node[] => {
+      const child = nodes[childId];
+      if (!child) return [];
+      if (child.type === "#text")
+        return [
+          document.createComment(`muscat-text:${child.id}`),
+          document.createTextNode(child.content ?? ""),
+        ];
+      const childElement = document.createElement(child.type);
+      childElement.dataset.muscatNodeId = child.id;
+      for (const [name, value] of Object.entries(child.attributes))
+        childElement.setAttribute(name, value);
+      if (child.richContent !== undefined) appendRichContent(childElement, child.richContent);
+      else restoreManagedChildren(childElement, child, nodes);
+      return [childElement];
+    }),
+  );
 }
