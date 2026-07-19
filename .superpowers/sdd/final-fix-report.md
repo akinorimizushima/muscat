@@ -55,4 +55,5 @@ Expected Playwright web-server warnings only: `NO_COLOR` is ignored when `FORCE_
 
 ## Commits
 
-- Recorded after verification in the task response.
+- `1feed7dd160e85c4530016ae1612a58fd5b283c1` - implementation, tests, verification report.
+- The report metadata follow-up commit is recorded in the task response because a commit cannot contain its own SHA.
