@@ -8,6 +8,8 @@ app.innerHTML = `
     <iframe title="Imported document" style="border:0;height:100%;width:100%"></iframe>
   </div>
   <textarea id="exported-html" hidden></textarea>
+  <button id="reload-renderer" type="button">Reload renderer</button>
+  <button id="dispose-renderer" type="button">Dispose renderer</button>
 `;
 const canvas = document.querySelector<HTMLElement>("#canvas");
 const iframe = document.querySelector<HTMLIFrameElement>("iframe");
@@ -41,7 +43,7 @@ const imported = importHtml(
   <script>window.unsafeImportExecuted = true;</script>
   <div id="scroller" style="height:180px;overflow:auto">
     <div style="height:240px"></div>
-    <h2>Scrollable target</h2>
+    <h2 id="scroller-heading">Scrollable target</h2>
     <p>Inline <span>movable span</span></p>
     <div style="height:240px"></div>
   </div>
@@ -85,10 +87,25 @@ const renderer = createIframeRenderer(iframe, {
     editor.dispatch(commands.setNodeAttributes({ nodeId, attributes }));
   },
   onViewportChange: updateOverlay,
-  onTextChange(nodeId, content) {
-    app.dataset.changedNodeId = nodeId;
-    app.dataset.changedContent = content;
+  onEdit({ nodeId, element, initialHtml }) {
+    app.dataset.editNodeId = nodeId;
+    app.dataset.editInitialHtml = initialHtml;
+    app.dataset.editElementId = element.id;
+    renderer.setEditing(true);
+    element.contentEditable = "true";
+    const menu = element.ownerDocument.createElement("div");
+    menu.dataset.fakeMenu = "";
+    element.ownerDocument.body.append(menu);
+  },
+  onEditingInvalidated() {
+    app.dataset.invalidatedCount = String(Number(app.dataset.invalidatedCount ?? "0") + 1);
+    iframe.contentDocument?.querySelector("[contenteditable]")?.removeAttribute("contenteditable");
+    iframe.contentDocument?.querySelector("[data-fake-menu]")?.remove();
   },
 });
 editor.subscribe((snapshot) => renderer.syncNodes(snapshot.document.nodes));
 renderer.render(imported.srcdoc);
+document
+  .querySelector("#reload-renderer")
+  ?.addEventListener("click", () => renderer.render(imported.srcdoc));
+document.querySelector("#dispose-renderer")?.addEventListener("click", () => renderer.dispose());

@@ -18,6 +18,7 @@ import {
   importHtml,
   type IframeRenderer,
 } from "@muscat/dom";
+import { createRichTextController } from "@muscat/rich-text";
 import "./style.css";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -84,11 +85,20 @@ let resizingImportedElement = false;
 let resizeInitialAttributes: Readonly<Record<string, string>> | undefined;
 let previewGeometry: Geometry | undefined;
 let selectedNodeId: string | undefined;
-let editing:
-  | { readonly element: HTMLElement; readonly nodeId: string; readonly initialContent: string }
-  | undefined;
 let importedPage: { readonly srcdoc: string; readonly topLevelIds: readonly string[] } | undefined;
 let iframeRenderer: IframeRenderer | undefined;
+
+const richTextController = createRichTextController({
+  onCommit(nodeId, richContent) {
+    if (!editor.getSnapshot().document.nodes[nodeId]) return;
+    editor.dispatch(commands.setNodeRichContent({ nodeId, richContent }));
+  },
+  onEditingChange(isEditing) {
+    canvas.classList.toggle("is-rich-text-editing", isEditing);
+    iframeRenderer?.setEditing(isEditing);
+    updateSelectionOverlay();
+  },
+});
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -215,8 +225,11 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
     onMove(nodeId, attributes) {
       editor.dispatch(commands.setNodeAttributes({ nodeId, attributes }));
     },
-    onTextChange(nodeId, content) {
-      editor.dispatch(commands.setNodeContent({ nodeId, content }));
+    onEdit({ nodeId, element, initialHtml }) {
+      richTextController.start({ nodeId, element, initialHtml });
+    },
+    onEditingInvalidated() {
+      richTextController.finish(true);
     },
   });
   iframeRenderer.render(importedPage.srcdoc);
@@ -279,27 +292,17 @@ function updateSelectionOverlay(): void {
   canvas.append(overlay);
 }
 
-function finishEditing(cancel: boolean): void {
-  if (!editing) return;
-  const completed = editing;
-  editing = undefined;
-  const content = cancel ? completed.initialContent : (completed.element.textContent ?? "");
-  completed.element.removeAttribute("contenteditable");
-  if (!cancel && content !== completed.initialContent) {
-    editor.dispatch(commands.setNodeContent({ nodeId: completed.nodeId, content }));
-  } else {
-    completed.element.textContent = completed.initialContent;
-  }
-}
-
 function startEditing(element: HTMLElement, nodeId: string): void {
-  if (editing) return;
+  if (richTextController.isEditing()) return;
   const node = editor.getSnapshot().document.nodes[nodeId];
   if (!node || node.children.length > 0) return;
-  editing = { element, nodeId, initialContent: element.textContent ?? "" };
-  element.setAttribute("contenteditable", "plaintext-only");
-  element.focus();
-  document.getSelection()?.selectAllChildren(element);
+  const escapedContent = document.createElement("div");
+  escapedContent.textContent = node.content ?? node.id;
+  richTextController.start({
+    element,
+    nodeId,
+    initialHtml: node.richContent ?? escapedContent.innerHTML,
+  });
 }
 
 function findEditableElement(target: EventTarget | null): HTMLElement | undefined {
@@ -361,8 +364,38 @@ document.querySelector("[data-action='export']")?.addEventListener("click", () =
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());
+function isInsideSelectedCanvasNode(target: EventTarget | null): boolean {
+  if (!selectedNodeId || !(target instanceof Element)) return false;
+  return Boolean(target.closest(`[data-node-id="${CSS.escape(selectedNodeId)}"]`));
+}
+
+const editingCommitPointerEvents = new WeakSet<Event>();
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (
+      !richTextController.isEditing() ||
+      richTextController.contains(event.target) ||
+      isInsideSelectedCanvasNode(event.target)
+    )
+      return;
+    if (event.target instanceof Node && canvas.contains(event.target))
+      editingCommitPointerEvents.add(event);
+    richTextController.finish(false);
+  },
+  true,
+);
+document.addEventListener("focusin", (event) => {
+  if (!richTextController.isEditing() || richTextController.contains(event.target)) return;
+  richTextController.finish(false);
+});
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || event.isComposing || event.altKey) return;
+  if (richTextController.isEditing() && event.key === "Escape") {
+    event.preventDefault();
+    richTextController.finish(true);
+    return;
+  }
   const target = event.target;
   if (
     target instanceof Element &&
@@ -382,8 +415,8 @@ document.addEventListener("keydown", (event) => {
   else editor.redo();
 });
 canvas.addEventListener("pointerdown", (event) => {
-  if (editing?.element.contains(event.target as Node | null)) return;
-  if (editing) finishEditing(false);
+  if (editingCommitPointerEvents.has(event)) return;
+  if (richTextController.isEditing()) return;
   const editable = findEditableElement(event.target);
   if (event.detail >= 2 && editable?.dataset.editorNodeId) {
     event.preventDefault();
@@ -435,20 +468,15 @@ canvas.addEventListener("dblclick", (event) => {
   startEditing(element, nodeId);
 });
 canvas.addEventListener("keydown", (event) => {
-  if (!editing) return;
+  if (!richTextController.isEditing()) return;
   if (event.key === "Escape") {
     event.preventDefault();
-    finishEditing(true);
-  } else if (event.key === "Enter") {
-    event.preventDefault();
-    finishEditing(false);
+    richTextController.finish(true);
   }
-});
-canvas.addEventListener("focusout", (event) => {
-  if (editing?.element === event.target) finishEditing(false);
 });
 canvas.addEventListener("scroll", updateSelectionOverlay);
 canvas.addEventListener("pointermove", (event) => {
+  if (richTextController.isEditing()) return;
   if (resizeSession) {
     previewGeometry = getResizeGeometry(resizeSession, { x: event.clientX, y: event.clientY });
     if (resizingImportedElement) previewImportedResize(previewGeometry);
@@ -461,6 +489,7 @@ canvas.addEventListener("pointermove", (event) => {
   render();
 });
 canvas.addEventListener("pointerup", () => {
+  if (richTextController.isEditing()) return;
   if (resizeSession && previewGeometry) {
     const session = resizeSession;
     const geometry = previewGeometry;
@@ -503,6 +532,7 @@ canvas.addEventListener("pointerup", () => {
   }
 });
 canvas.addEventListener("pointercancel", () => {
+  if (richTextController.isEditing()) return;
   if (resizeSession) {
     const wasImportedElement = resizingImportedElement;
     resizeSession = undefined;

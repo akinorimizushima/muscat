@@ -34,6 +34,12 @@ export interface SetNodeContentCommand {
   readonly content: string;
 }
 
+export interface SetNodeRichContentCommand {
+  readonly type: "node.setRichContent";
+  readonly nodeId: NodeId;
+  readonly richContent?: string;
+}
+
 export interface RestoreSubtreeCommand {
   readonly type: "node.restoreSubtree";
   readonly parentId: NodeId;
@@ -47,6 +53,7 @@ export type Command =
   | MoveNodeCommand
   | SetNodeAttributesCommand
   | SetNodeContentCommand
+  | SetNodeRichContentCommand
   | RemoveNodeCommand
   | RestoreSubtreeCommand;
 
@@ -65,5 +72,8 @@ export const commands = {
   },
   setNodeContent(command: Omit<SetNodeContentCommand, "type">): SetNodeContentCommand {
     return { type: "node.setContent", ...command };
+  },
+  setNodeRichContent(command: Omit<SetNodeRichContentCommand, "type">): SetNodeRichContentCommand {
+    return { type: "node.setRichContent", ...command };
   },
 };

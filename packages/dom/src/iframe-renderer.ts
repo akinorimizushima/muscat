@@ -1,4 +1,11 @@
 import type { EditorNode } from "@muscat/core";
+import { appendRichContent } from "./rich-content";
+
+export interface IframeEditRequest {
+  readonly nodeId: string;
+  readonly element: HTMLElement;
+  readonly initialHtml: string;
+}
 
 export interface IframeRendererOptions {
   readonly onSelect?: (nodeId: string) => void;
@@ -6,7 +13,8 @@ export interface IframeRendererOptions {
   readonly onViewportChange?: () => void;
   readonly onDragPreview?: (nodeId: string, deltaX: number, deltaY: number) => void;
   readonly onMove?: (nodeId: string, attributes: Readonly<Record<string, string>>) => void;
-  readonly onTextChange?: (nodeId: string, content: string) => void;
+  readonly onEdit?: (request: IframeEditRequest) => void;
+  readonly onEditingInvalidated?: () => void;
 }
 
 export interface IframeRenderer {
@@ -14,6 +22,7 @@ export interface IframeRenderer {
   getElementRect(nodeId: string): DOMRect | undefined;
   previewElementSize(nodeId: string, width: number, height: number): void;
   syncNodes(nodes: Readonly<Record<string, EditorNode>>): void;
+  setEditing(editing: boolean): void;
   dispose(): void;
 }
 
@@ -22,8 +31,17 @@ export function createIframeRenderer(
   options: IframeRendererOptions = {},
 ): IframeRenderer {
   let disconnectDocument: (() => void) | undefined;
+  let editing = false;
+  let editingElement: HTMLElement | undefined;
+  const invalidateEditing = (): void => {
+    if (!editing) return;
+    editing = false;
+    editingElement = undefined;
+    options.onEditingInvalidated?.();
+  };
 
   const connectDocument = (): void => {
+    invalidateEditing();
     disconnectDocument?.();
     const frameDocument = iframe.contentDocument;
     if (!frameDocument) return;
@@ -42,27 +60,6 @@ export function createIframeRenderer(
         }
       | undefined;
     let suppressClick = false;
-    let editing:
-      | {
-          readonly element: HTMLElement;
-          readonly textNodeId: string;
-          readonly initialContent: string;
-        }
-      | undefined;
-    const finishEditing = (cancel: boolean): void => {
-      if (!editing) return;
-      const completed = editing;
-      editing = undefined;
-      const content = cancel ? completed.initialContent : (completed.element.textContent ?? "");
-      completed.element.removeAttribute("contenteditable");
-      completed.element.replaceChildren(
-        frameDocument.createComment(`muscat-text:${completed.textNodeId}`),
-        frameDocument.createTextNode(content),
-      );
-      if (!cancel && content !== completed.initialContent) {
-        options.onTextChange?.(completed.textNodeId, content);
-      }
-    };
     const findNodeElement = (event: Event): HTMLElement | undefined => {
       const eventElement = event.target as Element | null;
       return eventElement?.closest<HTMLElement>("[data-muscat-node-id]") ?? undefined;
@@ -70,8 +67,10 @@ export function createIframeRenderer(
     const handlePointerDown = (event: PointerEvent): void => {
       if (event.button !== 0) return;
       if (editing) {
-        if (editing.element.contains(event.target as Node | null)) return;
-        finishEditing(false);
+        const target = event.target as Element | null;
+        if (editingElement?.contains(target) || target?.closest('[role="toolbar"]')) return;
+        suppressClick = true;
+        return;
       }
       const element = findNodeElement(event);
       const nodeId = element?.dataset.muscatNodeId;
@@ -135,29 +134,12 @@ export function createIframeRenderer(
     };
     const handleDoubleClick = (event: Event): void => {
       const element = findNodeElement(event);
-      if (!element || element.querySelector("[data-muscat-node-id]") || editing) return;
-      const textNodeId = directTextNodeId(element);
-      if (!textNodeId) return;
+      const nodeId = element?.dataset.muscatNodeId;
+      if (!element || !nodeId || element.querySelector("[data-muscat-node-id]") || editing) return;
       event.preventDefault();
       event.stopPropagation();
-      editing = { element, textNodeId, initialContent: element.textContent ?? "" };
-      element.setAttribute("contenteditable", "plaintext-only");
-      element.focus();
-      const selection = frameDocument.getSelection();
-      selection?.selectAllChildren(element);
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (!editing) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        finishEditing(true);
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        finishEditing(false);
-      }
-    };
-    const handleFocusOut = (event: FocusEvent): void => {
-      if (editing?.element === event.target) finishEditing(false);
+      editingElement = element;
+      options.onEdit?.({ nodeId, element, initialHtml: element.innerHTML });
     };
     const handleViewportChange = (): void => options.onViewportChange?.();
     frameDocument.addEventListener("pointerdown", handlePointerDown, { capture: true });
@@ -166,8 +148,6 @@ export function createIframeRenderer(
     frameDocument.addEventListener("pointercancel", handlePointerUp, { capture: true });
     frameDocument.addEventListener("click", handleClick, { capture: true });
     frameDocument.addEventListener("dblclick", handleDoubleClick, { capture: true });
-    frameDocument.addEventListener("keydown", handleKeyDown, { capture: true });
-    frameDocument.addEventListener("focusout", handleFocusOut, { capture: true });
     frameDocument.addEventListener("scroll", handleViewportChange, { capture: true });
     iframe.contentWindow?.addEventListener("resize", handleViewportChange);
     disconnectDocument = () => {
@@ -177,8 +157,6 @@ export function createIframeRenderer(
       frameDocument.removeEventListener("pointercancel", handlePointerUp, { capture: true });
       frameDocument.removeEventListener("click", handleClick, { capture: true });
       frameDocument.removeEventListener("dblclick", handleDoubleClick, { capture: true });
-      frameDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
-      frameDocument.removeEventListener("focusout", handleFocusOut, { capture: true });
       frameDocument.removeEventListener("scroll", handleViewportChange, { capture: true });
       iframe.contentWindow?.removeEventListener("resize", handleViewportChange);
     };
@@ -190,6 +168,7 @@ export function createIframeRenderer(
 
   return {
     render(srcdoc) {
+      invalidateEditing();
       iframe.srcdoc = srcdoc;
     },
     getElementRect(nodeId) {
@@ -229,9 +208,21 @@ export function createIframeRenderer(
         }
         for (const [name, value] of Object.entries(node.attributes))
           element.setAttribute(name, value);
+        if (editing && element === editingElement) continue;
+        if (node.richContent !== undefined) {
+          element.replaceChildren();
+          appendRichContent(element, node.richContent);
+        } else if (!hasManagedChildren(element, node, nodes)) {
+          restoreManagedChildren(element, node, nodes);
+        }
       }
     },
+    setEditing(isEditing) {
+      editing = isEditing;
+      if (!isEditing) editingElement = undefined;
+    },
     dispose() {
+      invalidateEditing();
       disconnectDocument?.();
       iframe.removeEventListener("load", connectDocument);
       iframe.removeAttribute("srcdoc");
@@ -247,15 +238,6 @@ function elementAttributes(element: HTMLElement): Readonly<Record<string, string
   return attributes;
 }
 
-function directTextNodeId(element: HTMLElement): string | undefined {
-  for (const child of element.childNodes) {
-    if (child.nodeType === Node.COMMENT_NODE && child.nodeValue?.startsWith("muscat-text:")) {
-      return child.nodeValue.slice("muscat-text:".length);
-    }
-  }
-  return undefined;
-}
-
 function findTextNode(document: Document, nodeId: string): Text | undefined {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
   while (walker.nextNode()) {
@@ -268,4 +250,52 @@ function findTextNode(document: Document, nodeId: string): Text | undefined {
     }
   }
   return undefined;
+}
+
+function hasManagedChildren(
+  element: HTMLElement,
+  node: EditorNode,
+  nodes: Readonly<Record<string, EditorNode>>,
+): boolean {
+  if (node.children.length === 0) return element.childNodes.length === 0;
+  return node.children.every((childId) => {
+    const child = nodes[childId];
+    if (!child) return true;
+    if (child.type !== "#text")
+      return [...element.children].some(
+        (candidate) => candidate.getAttribute("data-muscat-node-id") === childId,
+      );
+    return [...element.childNodes].some(
+      (candidate) =>
+        candidate.nodeType === Node.COMMENT_NODE &&
+        (candidate as Comment).data === `muscat-text:${childId}` &&
+        candidate.nextSibling?.nodeType === Node.TEXT_NODE,
+    );
+  });
+}
+
+function restoreManagedChildren(
+  element: HTMLElement,
+  node: EditorNode,
+  nodes: Readonly<Record<string, EditorNode>>,
+): void {
+  const document = element.ownerDocument;
+  element.replaceChildren(
+    ...node.children.flatMap((childId): Node[] => {
+      const child = nodes[childId];
+      if (!child) return [];
+      if (child.type === "#text")
+        return [
+          document.createComment(`muscat-text:${child.id}`),
+          document.createTextNode(child.content ?? ""),
+        ];
+      const childElement = document.createElement(child.type);
+      childElement.dataset.muscatNodeId = child.id;
+      for (const [name, value] of Object.entries(child.attributes))
+        childElement.setAttribute(name, value);
+      if (child.richContent !== undefined) appendRichContent(childElement, child.richContent);
+      else restoreManagedChildren(childElement, child, nodes);
+      return [childElement];
+    }),
+  );
 }

@@ -146,6 +146,14 @@ h2 {
   font-family: Georgia, serif;
   font-size: 1rem;
 }
+.is-rich-text-editing .canvas-node {
+  cursor: text;
+  touch-action: auto;
+  user-select: text;
+}
+.is-rich-text-editing .selection-overlay {
+  display: none;
+}
 .selection-overlay {
   border: 2px solid #147d68;
   pointer-events: none;

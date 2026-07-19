@@ -1,4 +1,5 @@
 import type { EditorNode } from "@muscat/core";
+import { appendRichContent } from "./rich-content";
 
 export interface CreateDomNodeOptions {
   readonly onElement?: (node: EditorNode, element: HTMLElement) => void;
@@ -19,6 +20,10 @@ export function createDomNode(
     }
   }
   options.onElement?.(node, element);
+  if (node.richContent !== undefined) {
+    appendRichContent(element, node.richContent);
+    return element;
+  }
   if (node.content) element.append(document.createTextNode(node.content));
   for (const childId of node.children) {
     const child = nodes[childId];

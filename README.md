@@ -6,6 +6,7 @@ An early, headless foundation for an HTML GUI editor. The first vertical slice i
 
 - `@muscat/core`: DOM-free document, command, transaction, history, and editor APIs.
 - `@muscat/dom`: Safe HTML parsing into core transactions and rendering core nodes into DOM nodes.
+- `@muscat/rich-text`: Optional headless rich-text editing adapter with controller lifecycle, formatting UI, and cross-document style ownership.
 - XState v5 is an implementation detail used only for transient workflow state (`idle` / `dragging`). It does not own the document tree and its actor types are not public.
 - UI frameworks, DOM rendering, pointer-event adapters, persistence, and collaboration are deliberately outside core. Future packages can add `renderer-dom`, `interaction-dom`, `ui-lit`, and a Yjs adapter through explicit transaction boundaries.
 
@@ -70,5 +71,7 @@ pnpm build
 Browser tests live beside core in `packages/core/test/browser`. A small Vite-powered GUI harness consumes only the public core API, Playwright exercises it in Chromium, and Istanbul coverage is merged with Vitest coverage into `packages/core/coverage/report`.
 
 The demo application lives in `apps/demo` and is available at `http://127.0.0.1:5173` after running `pnpm dev`.
+
+Tiptap is a private implementation detail of `@muscat/rich-text`; the demo consumes only Muscat-owned APIs and does not depend on Tiptap or ProseMirror types.
 
 The core remains plain TypeScript and DOM-independent. High-frequency pointer movement belongs in a future interaction session package using `requestAnimationFrame`; only the final geometry becomes one document transaction. Collaboration should similarly translate between Yjs operations and public document transactions without exposing Yjs types.

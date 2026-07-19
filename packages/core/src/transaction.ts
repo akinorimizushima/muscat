@@ -116,6 +116,21 @@ export function applyCommand(document: EditorDocument, command: Command): Applie
         },
       };
     }
+    case "node.setRichContent": {
+      const node = requiredNode(document, command.nodeId);
+      const updatedNode = { ...node };
+      if (command.richContent === undefined) delete updatedNode.richContent;
+      else updatedNode.richContent = command.richContent;
+      nodes[node.id] = updatedNode;
+      const inverseCommand: Command =
+        node.richContent === undefined
+          ? { type: "node.setRichContent", nodeId: node.id }
+          : { type: "node.setRichContent", nodeId: node.id, richContent: node.richContent };
+      return {
+        document: { ...document, nodes },
+        inverse: { commands: [inverseCommand] },
+      };
+    }
     case "node.remove": {
       const node = requiredNode(document, command.nodeId);
       if (node.parentId === null) throw new CommandError("The document root cannot be removed");

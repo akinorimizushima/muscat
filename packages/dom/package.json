@@ -13,7 +13,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "test": "pnpm test:unit",
     "test:browser": "playwright test -c test/browser/playwright.config.ts",
+    "test:unit": "vitest run -c vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "happy-dom": "^18.0.1",
     "vite": "^7.1.3"
   }
 }
