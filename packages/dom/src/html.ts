@@ -19,7 +19,6 @@ const BLOCKED_ELEMENTS = new Set([
   "embed",
 ]);
 const URL_ATTRIBUTES = new Set(["href", "src", "poster", "action", "formaction"]);
-const RICH_INLINE_ELEMENTS = new Set(["br", "strong", "em", "u", "s", "a"]);
 const BLOCK_ELEMENTS = new Set([
   "address",
   "article",
@@ -112,14 +111,19 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
     element.setAttribute("data-muscat-node-id", id);
 
     const descendants = [...element.querySelectorAll("*")];
-    const hasBlockChildren = descendants.some((child) =>
-      BLOCK_ELEMENTS.has(child.tagName.toLowerCase()),
-    );
-    const hasOnlyRichInlineChildren =
-      descendants.length > 0 &&
-      descendants.every((child) => RICH_INLINE_ELEMENTS.has(child.tagName.toLowerCase()));
+    const hasBlockChildren = descendants.some((child) => {
+      const display = (child as HTMLElement).style.display.toLowerCase();
+      return (
+        BLOCK_ELEMENTS.has(child.tagName.toLowerCase()) ||
+        display === "block" ||
+        display === "flex" ||
+        display === "grid" ||
+        display === "table" ||
+        display === "list-item"
+      );
+    });
     const richContent =
-      hasBlockChildren || !hasOnlyRichInlineChildren
+      hasBlockChildren || descendants.length === 0
         ? undefined
         : sanitizeRichContent(element.innerHTML, parsed);
 
