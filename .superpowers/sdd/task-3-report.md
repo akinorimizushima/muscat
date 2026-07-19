@@ -79,3 +79,27 @@ Implemented and verified the vanilla Tiptap session and selection-anchored Bubbl
 - Tiptap Link rendering explicitly removes `target` and `rel`.
 - Tests now cover left/center/right alignment, narrow-selection link preservation, no-op history, outside teardown, link-input cancellation, editing-time drag/resize/overlay suppression, and 390px expanded-toolbar bounds.
 - The link form uses full-row flex wrapping and shrinkable controls at narrow viewport widths.
+
+## Final Link Safety Fix Wave
+
+### RED Evidence
+
+- The first synthetic paste test failed for invalid test plumbing: the constructed clipboard event did not insert text (`Expected substring: "ftp://unsafe.example/file"`, `Received: "Element 1"`). It was replaced with real sequential typing through the ProseMirror surface.
+- `playwright test ... -g "unsafe typed URI" --workers=1` then produced the valid RED result: the typed `ftp://unsafe.example/file ` became one anchor (`Expected: 0`, `Received: 1`).
+- Adding `isAllowedUri` alone remained red because Tiptap v3 StarterKit also registered its default Link extension. Disabling StarterKit's bundled Link made the explicitly configured safe Link extension authoritative.
+
+### GREEN Evidence
+
+- Focused link run: `playwright test ... -g "unsafe typed URI|applies, rejects" --workers=1`: 2 passed in 4.9s.
+- `pnpm --filter @muscat/dom test:browser`: 25 passed in 5.6s.
+- Targeted `oxfmt --check`: all 6 matched task files correctly formatted.
+- `pnpm lint`: exit 0, no warnings.
+- `pnpm --filter @muscat/demo typecheck`: exit 0.
+- `pnpm --filter @muscat/demo build`: exit 0, 78 modules transformed.
+
+### Final Fixes
+
+- Tiptap Link now delegates URI validation to shared `isSafeRichTextUrl`, preserving its http, https, mailto, tel, relative-path, and fragment allowlist while rejecting unsafe schemes during editing.
+- StarterKit's bundled Link is disabled to avoid duplicate extension configuration and default unsafe autolinking.
+- The link form uses the same shared validator as Tiptap and DOM sanitization.
+- Removed the unconditional Link-button enabled override; its disabled state now follows `editor.can()` like every other toolbar command.

@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { isSafeRichTextUrl } from "@muscat/dom";
 
 export interface RichTextMenu {
   readonly element: HTMLElement;
@@ -81,7 +82,7 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
     );
   }
 
-  const linkButton = addButton(
+  addButton(
     "Link",
     "Link",
     () => {
@@ -117,20 +118,10 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
   linkForm.append(urlLabel, apply, remove);
   element.append(linkForm);
 
-  const isSafeUrl = (value: string): boolean => {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-    try {
-      const parsed = new URL(trimmed, ownerDocument.baseURI);
-      return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol);
-    } catch {
-      return false;
-    }
-  };
   linkForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const href = urlInput.value.trim();
-    if (!isSafeUrl(href)) {
+    if (!href || !isSafeRichTextUrl(href)) {
       urlInput.setAttribute("aria-invalid", "true");
       return;
     }
@@ -148,7 +139,6 @@ export function createRichTextMenu(editor: Editor, ownerDocument: Document): Ric
       button.element.setAttribute("aria-pressed", String(button.active()));
       button.element.disabled = !button.enabled();
     }
-    linkButton.disabled = false;
   };
   editor.on("selectionUpdate", update);
   editor.on("transaction", update);

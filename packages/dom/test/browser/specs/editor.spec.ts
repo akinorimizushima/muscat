@@ -153,6 +153,18 @@ test("applies, rejects, and removes links in a regular node", async ({ page }) =
   await expect(content.locator("a")).toHaveCount(0);
 });
 
+test("keeps an unsafe typed URI as plain text while editing", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await content.pressSequentially("ftp://unsafe.example/file ");
+
+  await expect(content).toContainText("ftp://unsafe.example/file");
+  await expect(content.locator("a")).toHaveCount(0);
+});
+
 test("cancels rich text editing when Escape is pressed in the link input", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();

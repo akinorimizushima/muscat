@@ -4,7 +4,7 @@ import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
-import { sanitizeRichContent } from "@muscat/dom";
+import { isSafeRichTextUrl, sanitizeRichContent } from "@muscat/dom";
 import { createRichTextMenu, type RichTextMenu } from "./rich-text-menu";
 
 export interface RichTextStartOptions {
@@ -60,11 +60,12 @@ export function createRichTextController(options: {
         element: startOptions.element,
         content: safeInitialHtml,
         extensions: [
-          StarterKit,
+          StarterKit.configure({ link: false }),
           Underline,
           Link.configure({
             openOnClick: false,
             HTMLAttributes: { target: null, rel: null },
+            isAllowedUri: (url) => isSafeRichTextUrl(url),
           }),
           TextAlign.configure({ types: ["paragraph"], alignments: ["left", "center", "right"] }),
         ],
