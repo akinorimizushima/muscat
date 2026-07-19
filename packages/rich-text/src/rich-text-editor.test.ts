@@ -6,6 +6,138 @@ import { createRichTextMenu } from "./rich-text-menu";
 afterEach(() => document.body.replaceChildren());
 
 describe("createRichTextController", () => {
+  it("commits and cleans the current session before starting another in the same document", () => {
+    const first = document.createElement("p");
+    const second = document.createElement("p");
+    first.innerHTML = "First";
+    second.innerHTML = "Second";
+    document.body.append(first, second);
+    const editors: Editor[] = [];
+    const commits = vi.fn();
+    const editingChanges: boolean[] = [];
+    const controller = createRichTextController(
+      {
+        onCommit: commits,
+        onEditingChange: (editing) => editingChanges.push(editing),
+      },
+      {
+        createEditor(options) {
+          const editor = new Editor(options);
+          editors.push(editor);
+          return editor;
+        },
+      },
+    );
+
+    controller.start({ nodeId: "first", element: first, initialHtml: "First" });
+    const firstDescendant = first.querySelector(".ProseMirror")!.firstChild;
+    editors[0]!.commands.setContent("<strong>First changed</strong>");
+    controller.start({ nodeId: "second", element: second, initialHtml: "Second" });
+
+    expect(commits).toHaveBeenCalledTimes(1);
+    expect(commits).toHaveBeenCalledWith("first", "<strong>First changed</strong>");
+    expect(first.innerHTML).toBe("<strong>First changed</strong>");
+    expect(first.querySelector(".ProseMirror")).toBeNull();
+    expect(controller.contains(firstDescendant)).toBe(false);
+    expect(controller.contains(second.querySelector(".ProseMirror")!.firstChild)).toBe(true);
+    expect(
+      document.querySelectorAll('style[data-muscat-rich-text-style="controller"]'),
+    ).toHaveLength(1);
+    expect(editingChanges).toEqual([true, false, true]);
+
+    controller.dispose();
+    expect(controller.isEditing()).toBe(false);
+    expect(document.querySelector(".rich-text-menu")).toBeNull();
+    expect(document.querySelector("style[data-muscat-rich-text-style]")).toBeNull();
+  });
+
+  it("switches owner documents without leaving listeners or styles in the first document", () => {
+    const firstFrame = document.createElement("iframe");
+    const secondFrame = document.createElement("iframe");
+    document.body.append(firstFrame, secondFrame);
+    const firstDocument = firstFrame.contentDocument!;
+    const secondDocument = secondFrame.contentDocument!;
+    const first = firstDocument.createElement("p");
+    const second = secondDocument.createElement("p");
+    first.innerHTML = "First";
+    second.innerHTML = "Second";
+    firstDocument.body.append(first);
+    secondDocument.body.append(second);
+    const editors: Editor[] = [];
+    const commits = vi.fn();
+    const controller = createRichTextController(
+      { onCommit: commits, onEditingChange: vi.fn() },
+      {
+        createEditor(options) {
+          const editor = new Editor(options);
+          editors.push(editor);
+          return editor;
+        },
+      },
+    );
+
+    controller.start({ nodeId: "first", element: first, initialHtml: "First" });
+    editors[0]!.commands.setContent("First changed");
+    controller.start({ nodeId: "second", element: second, initialHtml: "Second" });
+
+    expect(commits).toHaveBeenCalledOnce();
+    expect(firstDocument.querySelector("style[data-muscat-rich-text-style]")).toBeNull();
+    expect(
+      secondDocument.querySelectorAll('style[data-muscat-rich-text-style="controller"]'),
+    ).toHaveLength(1);
+    expect(controller.contains(first)).toBe(false);
+    expect(controller.contains(second.querySelector(".ProseMirror")!.firstChild)).toBe(true);
+    firstDocument.body.dispatchEvent(new firstDocument.defaultView!.PointerEvent("pointerdown"));
+    expect(controller.isEditing()).toBe(true);
+    expect(commits).toHaveBeenCalledOnce();
+
+    controller.dispose();
+    expect(firstDocument.querySelector("style[data-muscat-rich-text-style]")).toBeNull();
+    expect(secondDocument.querySelector("style[data-muscat-rich-text-style]")).toBeNull();
+    expect(firstDocument.querySelector(".rich-text-menu")).toBeNull();
+    expect(secondDocument.querySelector(".rich-text-menu")).toBeNull();
+  });
+
+  it("does not start the requested session when committing the current session throws", () => {
+    const first = document.createElement("p");
+    const second = document.createElement("p");
+    first.innerHTML = "First";
+    second.innerHTML = "Second";
+    document.body.append(first, second);
+    const editors: Editor[] = [];
+    const editingChanges: boolean[] = [];
+    const controller = createRichTextController(
+      {
+        onCommit() {
+          throw new Error("switch commit failed");
+        },
+        onEditingChange: (editing) => editingChanges.push(editing),
+      },
+      {
+        createEditor(options) {
+          const editor = new Editor(options);
+          editors.push(editor);
+          return editor;
+        },
+      },
+    );
+
+    controller.start({ nodeId: "first", element: first, initialHtml: "First" });
+    editors[0]!.commands.setContent("Changed");
+
+    expect(() =>
+      controller.start({ nodeId: "second", element: second, initialHtml: "Second" }),
+    ).toThrow("switch commit failed");
+    expect(editors).toHaveLength(1);
+    expect(controller.isEditing()).toBe(false);
+    expect(first.querySelector(".ProseMirror")).toBeNull();
+    expect(second.innerHTML).toBe("Second");
+    expect(second.querySelector(".ProseMirror")).toBeNull();
+    expect(document.querySelector(".rich-text-menu")).toBeNull();
+    expect(document.querySelector("style[data-muscat-rich-text-style]")).toBeNull();
+    expect(editingChanges).toEqual([true, false]);
+  });
+
   it("reports editor and menu descendants only while the main-document session is active", () => {
     const element = document.createElement("p");
     element.innerHTML = "Original";

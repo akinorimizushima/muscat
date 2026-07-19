@@ -88,7 +88,7 @@ export function createRichTextController(
 
   return {
     start(startOptions) {
-      if (session) return;
+      if (session) finish(false);
       const ownerDocument = startOptions.element.ownerDocument;
       const supportsLinkMarks = startOptions.element.tagName !== "A";
       const safeInitialHtml = sanitizeRichContent(startOptions.initialHtml, ownerDocument);
