@@ -5,21 +5,9 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
 import { isSafeRichTextUrl, sanitizeRichContent } from "@muscat/dom";
+import type { RichTextController, RichTextControllerOptions } from "./index";
 import { createRichTextMenu, type RichTextMenu } from "./rich-text-menu";
 import { RICH_TEXT_STYLES } from "./rich-text-styles";
-
-export interface RichTextStartOptions {
-  readonly nodeId: string;
-  readonly element: HTMLElement;
-  readonly initialHtml: string;
-}
-
-export interface RichTextController {
-  start(options: RichTextStartOptions): void;
-  finish(cancel: boolean): void;
-  isEditing(): boolean;
-  dispose(): void;
-}
 
 interface RichTextControllerDependencies {
   readonly createEditor?: (options: ConstructorParameters<typeof Editor>[0]) => Editor;
@@ -49,10 +37,7 @@ function adoptRichTextStyles(ownerDocument: Document): () => void {
 }
 
 export function createRichTextController(
-  options: {
-    readonly onCommit: (nodeId: string, richContent: string) => void;
-    readonly onEditingChange: (editing: boolean) => void;
-  },
+  options: RichTextControllerOptions,
   dependencies: RichTextControllerDependencies = {},
 ): RichTextController {
   let session:

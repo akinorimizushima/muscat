@@ -1,13 +1,23 @@
-import {
-  createRichTextController as createInternalRichTextController,
-  type RichTextController,
-} from "./rich-text-editor";
+import { createRichTextController as createInternalRichTextController } from "./rich-text-editor";
 
-export type { RichTextController, RichTextStartOptions } from "./rich-text-editor";
+export interface RichTextStartOptions {
+  readonly nodeId: string;
+  readonly element: HTMLElement;
+  readonly initialHtml: string;
+}
 
-export function createRichTextController(options: {
+export interface RichTextController {
+  start(options: RichTextStartOptions): void;
+  finish(cancel: boolean): void;
+  isEditing(): boolean;
+  dispose(): void;
+}
+
+export interface RichTextControllerOptions {
   readonly onCommit: (nodeId: string, richContent: string) => void;
   readonly onEditingChange: (editing: boolean) => void;
-}): RichTextController {
+}
+
+export function createRichTextController(options: RichTextControllerOptions): RichTextController {
   return createInternalRichTextController(options);
 }

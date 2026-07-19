@@ -67,3 +67,41 @@ git diff --check   PASS
 ## Commit
 
 - Recorded in the task response because a commit cannot contain its own SHA.
+
+## Declaration Boundary Follow-Up
+
+### RED
+
+Added `public-declarations.test.ts`, which builds the package, starts at `dist/index.d.ts`, recursively follows relative declaration imports, and scans the complete reachable graph for `@tiptap`, `prosemirror`, `Editor`, `RichTextMenu`, and `RichTextControllerDependencies`.
+
+The first run failed as intended:
+
+```text
+Expected reachable files: [index.d.ts]
+Received: [index.d.ts, rich-text-editor.d.ts]
+```
+
+### GREEN
+
+- Moved `RichTextStartOptions`, `RichTextController`, and `RichTextControllerOptions` into the Tiptap-free public `index.ts` boundary.
+- Changed the private implementation to import those contracts with `import type`.
+- Kept the public factory as a one-argument wrapper and retained the injectable editor factory only in package-private `rich-text-editor.ts`.
+
+Focused result:
+
+```text
+pnpm --filter @muscat/rich-text test       PASS (3/3)
+pnpm --filter @muscat/rich-text typecheck  PASS
+pnpm --filter @muscat/rich-text build      PASS
+```
+
+The emitted `dist/index.d.ts` is self-contained and the reachable graph contains only `index.d.ts` with none of the forbidden implementation/library names.
+
+Updated workspace gate:
+
+```text
+pnpm check       PASS
+pnpm test        PASS (24 tests: core 12, dom 7, demo 2, rich-text 3)
+pnpm build       PASS (4 projects)
+git diff --check PASS
+```
