@@ -31,6 +31,7 @@ export function createRichTextController(options: {
         initialHtml: string;
         editor: Editor;
         menu: RichTextMenu;
+        disconnectOwnerDocument: () => void;
       }
     | undefined;
 
@@ -38,6 +39,7 @@ export function createRichTextController(options: {
     if (!session) return;
     const completed = session;
     session = undefined;
+    completed.disconnectOwnerDocument();
     const currentHtml = serializeRichContent(completed.editor, completed.element);
     completed.editor.destroy();
     completed.menu.destroy();
@@ -79,12 +81,34 @@ export function createRichTextController(options: {
         }),
       );
       const initialHtml = serializeRichContent(tiptap, startOptions.element);
+      const isInsideSession = (target: EventTarget | null): boolean =>
+        target instanceof ownerDocument.defaultView!.Node &&
+        (startOptions.element.contains(target) || menu.element.contains(target));
+      const handlePointerDown = (event: PointerEvent): void => {
+        if (!isInsideSession(event.target)) finish(false);
+      };
+      const handleKeyDown = (event: KeyboardEvent): void => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        finish(true);
+      };
+      const ownsDocumentEvents = ownerDocument !== document;
+      if (ownsDocumentEvents) {
+        ownerDocument.addEventListener("pointerdown", handlePointerDown, { capture: true });
+        ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
+      }
       session = {
         nodeId: startOptions.nodeId,
         element: startOptions.element,
         initialHtml,
         editor: tiptap,
         menu,
+        disconnectOwnerDocument() {
+          if (!ownsDocumentEvents) return;
+          ownerDocument.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+          ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
+        },
       };
       options.onEditingChange(true);
       tiptap.commands.focus("all");

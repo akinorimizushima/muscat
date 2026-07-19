@@ -118,6 +118,50 @@ test("formats a selected range inside imported HTML", async ({ page }) => {
   expect(html).not.toMatch(/<h2[^>]*><p>/);
 });
 
+test("commits an iframe edit on an outside iframe pointer without selecting it", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await importSample(page);
+  const frame = page.frameLocator("iframe");
+  const target = frame.locator("h2");
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await target.pressSequentially("Committed in iframe");
+  await expect(target).toContainText("Committed in iframe");
+  await expect(page.locator("[data-canvas]")).toHaveClass(/is-rich-text-editing/);
+
+  await frame.locator("main").click({ position: { x: 4, y: 4 } });
+
+  await expect(frame.getByRole("toolbar", { name: "Text formatting" })).toHaveCount(0);
+  await expect(target).toHaveText("Committed in iframe");
+  await expect(page.locator("[data-selection-overlay] .selection-label")).toHaveText("h2");
+  expect(pageErrors).toEqual([]);
+});
+
+test("cancels an iframe edit with Escape from the link input", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await importSample(page);
+  const frame = page.frameLocator("iframe");
+  const target = frame.locator("h2");
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  const menu = frame.getByRole("toolbar", { name: "Text formatting" });
+  await menu.getByRole("button", { name: "Link" }).click();
+  const input = menu.getByLabel("URL");
+  await input.fill("https://example.com/cancelled");
+  await expect(page.locator("[data-canvas]")).toHaveClass(/is-rich-text-editing/);
+
+  await input.press("Escape");
+
+  await expect(menu).toHaveCount(0);
+  await expect(target).toHaveText("Editable target");
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
+  expect(pageErrors).toEqual([]);
+});
+
 test("applies regular node marks and alignment", async ({ page }) => {
   await page.goto(demoUrl);
   await page.getByRole("button", { name: "Add element" }).click();

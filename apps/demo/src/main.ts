@@ -227,6 +227,9 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
     onEdit({ nodeId, element, initialHtml }) {
       richTextController.start({ nodeId, element, initialHtml });
     },
+    onEditingInvalidated() {
+      richTextController.finish(true);
+    },
   });
   iframeRenderer.render(importedPage.srcdoc);
 }

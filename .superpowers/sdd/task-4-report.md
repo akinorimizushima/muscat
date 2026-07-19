@@ -53,3 +53,34 @@ Implemented iframe leaf edit delegation through the shared Tiptap controller. Th
 ## Commit
 
 - `feat(dom): support Tiptap editing in iframes` (SHA reported in the final task response).
+
+## Important Findings Follow-up
+
+### RED
+
+- Added `commits an iframe edit on an outside iframe pointer without selecting it`; it failed because the iframe-local pointer never reached the parent document and the edit remained uncommitted.
+- Added `cancels an iframe edit with Escape from the link input`; it failed because iframe key events never reached the parent Escape listener and the menu remained mounted.
+- Added `invalidates active editing once before reload and dispose`; it failed because neither renderer path notified the shared controller before detaching the iframe document.
+- During GREEN verification, the existing regular-node drag suppression test failed deterministically because both parent and controller listeners handled the parent document with different containment boundaries. The controller listener was then restricted to foreign owner documents.
+
+### GREEN
+
+- The shared controller installs pointerdown and Escape listeners on foreign owner documents and removes them before destroying a session.
+- An iframe-local outside pointer commits, while its paired click is consumed before it can select or start interaction on another imported node.
+- Toolbar/editor pointer events remain interactive and Escape cancels from the iframe link input.
+- `IframeRendererOptions.onEditingInvalidated` runs once for an active session before reload, external reconnect, or disposal. Renderer state is cleared before invoking the callback, making repeated cleanup idempotent.
+- The demo maps invalidation to `richTextController.finish(true)`, so no detached iframe edit is committed and menu/editor listeners are removed before `srcdoc` replacement or disposal.
+
+### Follow-up Verification
+
+- Focused lifecycle and regression selection: 5 passed.
+- Full browser suite: 29 passed.
+- DOM and demo typechecks: passed.
+- Lint: passed.
+- Task-owned format check: passed for all seven files.
+- Repository format check still reports two unrelated pre-existing files: `docs/superpowers/plans/2026-07-19-tiptap-rich-text.md` and `packages/core/src/commands.ts`.
+- `git diff --check`: passed.
+
+### Follow-up Concerns
+
+- The temporary paragraph schema concern remains unchanged. Committed and exported phrasing-host HTML remains valid and covered by the iframe formatting test.

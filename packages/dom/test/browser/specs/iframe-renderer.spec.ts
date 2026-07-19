@@ -92,10 +92,24 @@ test("emits an edit request for a leaf element", async ({ page }) => {
   await page.goto("http://127.0.0.1:4273/");
   const target = page.frameLocator("iframe").locator("#scroller h2");
   await target.dblclick();
-  await expect(page.locator("#app")).toHaveAttribute(
-    "data-edit-initial-html",
-    /Scrollable target/,
-  );
+  await expect(page.locator("#app")).toHaveAttribute("data-edit-initial-html", /Scrollable target/);
   await expect(page.locator("#app")).toHaveAttribute("data-edit-node-id", /^node-\d+$/);
   await expect(page.locator("#app")).toHaveAttribute("data-edit-element-id", "scroller-heading");
+});
+
+test("invalidates active editing once before reload and dispose", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4273/");
+  const frame = page.frameLocator("iframe");
+  await frame.locator("#scroller h2").dblclick();
+  await expect(frame.locator("[data-fake-menu]")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Reload renderer" }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-invalidated-count", "1");
+  await expect(frame.locator("[data-fake-menu]")).toHaveCount(0);
+
+  await frame.locator("#scroller h2").dblclick();
+  await expect(frame.locator("[data-fake-menu]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Dispose renderer" }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-invalidated-count", "2");
+  await expect(frame.locator("[data-fake-menu]")).toHaveCount(0);
 });

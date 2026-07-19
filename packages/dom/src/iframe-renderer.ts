@@ -14,6 +14,7 @@ export interface IframeRendererOptions {
   readonly onDragPreview?: (nodeId: string, deltaX: number, deltaY: number) => void;
   readonly onMove?: (nodeId: string, attributes: Readonly<Record<string, string>>) => void;
   readonly onEdit?: (request: IframeEditRequest) => void;
+  readonly onEditingInvalidated?: () => void;
 }
 
 export interface IframeRenderer {
@@ -32,8 +33,15 @@ export function createIframeRenderer(
   let disconnectDocument: (() => void) | undefined;
   let editing = false;
   let editingElement: HTMLElement | undefined;
+  const invalidateEditing = (): void => {
+    if (!editing) return;
+    editing = false;
+    editingElement = undefined;
+    options.onEditingInvalidated?.();
+  };
 
   const connectDocument = (): void => {
+    invalidateEditing();
     disconnectDocument?.();
     const frameDocument = iframe.contentDocument;
     if (!frameDocument) return;
@@ -58,7 +66,12 @@ export function createIframeRenderer(
     };
     const handlePointerDown = (event: PointerEvent): void => {
       if (event.button !== 0) return;
-      if (editing) return;
+      if (editing) {
+        const target = event.target as Element | null;
+        if (editingElement?.contains(target) || target?.closest('[role="toolbar"]')) return;
+        suppressClick = true;
+        return;
+      }
       const element = findNodeElement(event);
       const nodeId = element?.dataset.muscatNodeId;
       if (!element || !nodeId) return;
@@ -155,6 +168,7 @@ export function createIframeRenderer(
 
   return {
     render(srcdoc) {
+      invalidateEditing();
       iframe.srcdoc = srcdoc;
     },
     getElementRect(nodeId) {
@@ -205,6 +219,7 @@ export function createIframeRenderer(
       if (!isEditing) editingElement = undefined;
     },
     dispose() {
+      invalidateEditing();
       disconnectDocument?.();
       iframe.removeEventListener("load", connectDocument);
       iframe.removeAttribute("srcdoc");
