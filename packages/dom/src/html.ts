@@ -6,7 +6,7 @@ import {
   type Transaction,
 } from "@muscat/core";
 import { createDomNode } from "./create-dom-node";
-import { sanitizeRichContent } from "./rich-content";
+import { isSafeRichTextUrl, sanitizeRichContent } from "./rich-content";
 
 const BLOCKED_ELEMENTS = new Set([
   "script",
@@ -103,6 +103,7 @@ export function importHtml(html: string, nextId: () => string): HtmlImportResult
     for (const attribute of element.attributes) {
       const name = attribute.name.toLowerCase();
       if (name.startsWith("on") || name === "srcdoc") continue;
+      if (tagName === "a" && name === "href" && !isSafeRichTextUrl(attribute.value)) continue;
       if (URL_ATTRIBUTES.has(name) && !isSafeUrl(attribute.value)) continue;
       if (name === "style" && /(?:javascript\s*:|expression\s*\(|url\s*\()/i.test(attribute.value))
         continue;

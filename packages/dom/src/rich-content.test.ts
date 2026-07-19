@@ -92,4 +92,14 @@ describe("rich content DOM compatibility", () => {
     expect(applied.document.nodes["node-1"]?.richContent).toBe("<a>A</a>");
     expect(exportHtml(applied.document)).toContain("<p><a>A</a></p>");
   });
+
+  it("removes an unsafe href from a standalone imported link", () => {
+    let nextId = 0;
+    const imported = importHtml('<a href="ftp://example.test">A</a>', () => `node-${++nextId}`);
+    const applied = applyTransaction(createDocument(), imported.transaction);
+
+    expect(applied.document.nodes["node-1"]?.attributes.href).toBeUndefined();
+    expect(exportHtml(applied.document)).toContain("<a>A</a>");
+    expect(exportHtml(applied.document)).not.toContain("ftp://example.test");
+  });
 });
