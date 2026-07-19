@@ -26,6 +26,7 @@ button {
 }
 
 button[data-action="import"],
+button[data-action="export"],
 button[data-action="confirm-import"] {
   background: #5c1f43;
   color: white;

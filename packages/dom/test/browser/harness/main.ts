@@ -1,5 +1,5 @@
 import { commands, createEditor } from "@muscat/core";
-import { createIframeRenderer, importHtml } from "../../../src/index.js";
+import { createIframeRenderer, exportHtml, importHtml } from "../../../src/index.js";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("Missing app root");
@@ -7,6 +7,7 @@ app.innerHTML = `
   <div id="canvas" style="height:240px;position:relative;width:500px">
     <iframe title="Imported document" style="border:0;height:100%;width:100%"></iframe>
   </div>
+  <textarea id="exported-html" hidden></textarea>
 `;
 const canvas = document.querySelector<HTMLElement>("#canvas");
 const iframe = document.querySelector<HTMLIFrameElement>("iframe");
@@ -52,6 +53,12 @@ const imported = importHtml(
 );
 const editor = createEditor();
 editor.dispatch(imported.transaction);
+const exportedHtml = document.querySelector<HTMLTextAreaElement>("#exported-html");
+if (!exportedHtml) throw new Error("Missing exported HTML output");
+exportedHtml.value = exportHtml(editor.getSnapshot().document, {
+  language: "en",
+  title: "Exported sample",
+});
 let selectedId: string | undefined;
 
 function updateOverlay(): void {

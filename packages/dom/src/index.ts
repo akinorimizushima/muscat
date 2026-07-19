@@ -1,6 +1,7 @@
 import {
   commands,
   type Command,
+  type EditorDocument,
   type EditorNode,
   type Geometry,
   type Transaction,
@@ -22,6 +23,32 @@ export interface HtmlImportResult {
   readonly transaction: Transaction;
   readonly topLevelIds: readonly string[];
   readonly srcdoc: string;
+}
+
+export interface HtmlExportOptions {
+  readonly language?: string;
+  readonly title?: string;
+}
+
+export function exportHtml(
+  editorDocument: EditorDocument,
+  options: HtmlExportOptions = {},
+): string {
+  const root = editorDocument.nodes[editorDocument.rootId];
+  if (!root) throw new Error(`Document root was not found: ${editorDocument.rootId}`);
+
+  const exportedDocument = document.implementation.createHTMLDocument(options.title ?? "");
+  if (options.language) exportedDocument.documentElement.lang = options.language;
+  const charset = exportedDocument.createElement("meta");
+  charset.setAttribute("charset", "UTF-8");
+  exportedDocument.head.prepend(charset);
+
+  for (const childId of root.children) {
+    const child = editorDocument.nodes[childId];
+    if (child) exportedDocument.body.append(createDomNode(child, editorDocument.nodes));
+  }
+
+  return `<!doctype html>\n${exportedDocument.documentElement.outerHTML}`;
 }
 
 export function importHtml(html: string, nextId: () => string): HtmlImportResult {

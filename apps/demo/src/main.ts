@@ -11,7 +11,13 @@ import {
   type ResizeHandle,
   type ResizeSession,
 } from "@muscat/core";
-import { createDomNode, createIframeRenderer, importHtml, type IframeRenderer } from "@muscat/dom";
+import {
+  createDomNode,
+  createIframeRenderer,
+  exportHtml,
+  importHtml,
+  type IframeRenderer,
+} from "@muscat/dom";
 import "./style.css";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -25,6 +31,7 @@ app.innerHTML = `
     </div>
     <nav class="actions" aria-label="Editor actions">
       <button type="button" data-action="import">Import HTML</button>
+      <button type="button" data-action="export">Export HTML</button>
       <button type="button" data-action="add">Add element</button>
       <button type="button" data-action="undo">Undo</button>
       <button type="button" data-action="redo">Redo</button>
@@ -305,6 +312,15 @@ document.querySelector("[data-action='confirm-import']")?.addEventListener("clic
   editor.dispatch(result.transaction);
   importDialog.close();
   htmlSource.value = "";
+});
+document.querySelector("[data-action='export']")?.addEventListener("click", () => {
+  const html = exportHtml(editor.getSnapshot().document, { title: "Muscat export" });
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "muscat-export.html";
+  link.click();
+  URL.revokeObjectURL(url);
 });
 document.querySelector("[data-action='undo']")?.addEventListener("click", () => editor.undo());
 document.querySelector("[data-action='redo']")?.addEventListener("click", () => editor.redo());

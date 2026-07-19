@@ -1,5 +1,29 @@
 import { expect, test } from "@playwright/test";
 
+test("exports the editor document as clean standalone HTML", async ({ page }) => {
+  await page.goto("/");
+  const exported = await page.locator("#exported-html").inputValue();
+
+  expect(exported).toMatch(/^<!doctype html>/i);
+  const result = await page.evaluate((html) => {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    return {
+      language: parsed.documentElement.lang,
+      title: parsed.title,
+      heading: parsed.querySelector("h1")?.textContent,
+      revenueTag: parsed.querySelector("span")?.tagName,
+      unsafeElements: parsed.querySelectorAll("script, [onclick], [data-muscat-node-id]").length,
+    };
+  }, exported);
+  expect(result).toEqual({
+    language: "en",
+    title: "Exported sample",
+    heading: "A clearer view of growth",
+    revenueTag: "SPAN",
+    unsafeElements: 0,
+  });
+});
+
 test("keeps the selection overlay aligned when an iframe parent scrolls", async ({ page }) => {
   await page.goto("/");
   const frame = page.frameLocator("iframe");
