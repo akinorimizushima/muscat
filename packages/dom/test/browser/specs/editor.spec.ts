@@ -66,12 +66,124 @@ test("edits HTML text", async ({ page }) => {
   await page.getByRole("button", { name: "Add element" }).click();
   const content = page.locator('[data-editor-node-id="element-1"]');
   await content.dblclick();
-  await expect(content).toHaveAttribute("contenteditable", "plaintext-only");
+  await expect(content.locator(".ProseMirror")).toHaveAttribute("contenteditable", "true");
+  await expect(content).toHaveText("Element 1");
   await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
   await content.pressSequentially("Updated HTML node");
-  await content.press("Enter");
+  await page.locator("[data-canvas]").click({ position: { x: 2, y: 2 } });
   await expect(content).toHaveText("Updated HTML node");
+  await expect(content.locator(".ProseMirror")).toHaveCount(0);
+});
+
+test("formats a selected range in a regular node", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: "Bold" }).click();
+  await page.locator("[data-canvas]").click({ position: { x: 2, y: 2 } });
+
+  await expect(content.locator("strong")).toHaveText("Element 1");
+});
+
+test("applies regular node marks and alignment", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+
+  for (const name of ["Italic", "Underline", "Strike", "Align center"]) {
+    await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    await menu.getByRole("button", { name }).click();
+  }
+  await page.locator("[data-canvas]").click({ position: { x: 2, y: 2 } });
+
+  await expect(content.locator("em")).toHaveText("Element 1");
+  await expect(content.locator("u")).toHaveText("Element 1");
+  await expect(content.locator("s")).toHaveText("Element 1");
+  await expect(content.locator("p")).toHaveCSS("text-align", "center");
+});
+
+test("applies, rejects, and removes links in a regular node", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+  await menu.getByRole("button", { name: "Link" }).click();
+  const input = menu.getByLabel("URL");
+  await input.fill("javascript:alert(1)");
+  await menu.getByRole("button", { name: "Apply link" }).click();
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(content.locator("a")).toHaveCount(0);
+
+  await input.fill("https://example.com/docs");
+  await menu.getByRole("button", { name: "Apply link" }).click();
+  await expect(content.locator("a")).toHaveAttribute("href", "https://example.com/docs");
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await menu.getByRole("button", { name: "Link" }).click();
+  await menu.getByRole("button", { name: "Remove link" }).click();
+  await expect(content.locator("a")).toHaveCount(0);
+});
+
+test("hides the regular node menu for a collapsed selection", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const menu = page.getByRole("toolbar", { name: "Text formatting" });
+  await expect(menu).toBeVisible();
+  await content.press("ArrowRight");
+  await expect(menu).toBeHidden();
+});
+
+test("cancels regular node rich text editing with Escape", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await content.pressSequentially("Cancelled");
+  await content.press("Escape");
+  await expect(content).toHaveText("Element 1");
   await expect(content).not.toHaveAttribute("contenteditable", /.*/);
+});
+
+test("commits regular node rich text as one undo step", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  await content.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await content.pressSequentially("Committed");
+  await page.locator("[data-canvas]").click({ position: { x: 2, y: 2 } });
+  await expect(content).toHaveText("Committed");
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(content).toHaveText("Element 1");
+  await page.getByRole("button", { name: "Redo" }).click();
+  await expect(content).toHaveText("Committed");
+});
+
+test("suppresses regular node dragging while rich text is editing", async ({ page }) => {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Add element" }).click();
+  const node = page.getByLabel("Node element-1");
+  const content = page.locator('[data-editor-node-id="element-1"]');
+  await content.dblclick();
+  const before = await node.boundingBox();
+  if (!before) throw new Error("HTML node is not visible");
+  await page.mouse.move(before.x + 30, before.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 90, before.y + 70);
+  await page.mouse.up();
+  const after = await node.boundingBox();
+  expect(after?.x).toBeCloseTo(before.x, 0);
+  expect(after?.y).toBeCloseTo(before.y, 0);
 });
 
 test("keeps the HTML selection overlay aligned while an ancestor scrolls", async ({ page }) => {
