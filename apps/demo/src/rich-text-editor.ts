@@ -6,6 +6,7 @@ import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
 import { isSafeRichTextUrl, sanitizeRichContent } from "@muscat/dom";
 import { createRichTextMenu, type RichTextMenu } from "./rich-text-menu";
+import richTextStyles from "./rich-text.css?inline";
 
 export interface RichTextStartOptions {
   readonly nodeId: string;
@@ -20,10 +21,40 @@ export interface RichTextController {
   dispose(): void;
 }
 
-export function createRichTextController(options: {
-  readonly onCommit: (nodeId: string, richContent: string) => void;
-  readonly onEditingChange: (editing: boolean) => void;
-}): RichTextController {
+interface RichTextControllerDependencies {
+  readonly createEditor?: (options: ConstructorParameters<typeof Editor>[0]) => Editor;
+}
+
+const adoptedStyleReferences = new WeakMap<Document, number>();
+
+function adoptRichTextStyles(ownerDocument: Document): () => void {
+  if (ownerDocument === document) return () => undefined;
+  let style = ownerDocument.querySelector<HTMLStyleElement>("style[data-muscat-rich-text-style]");
+  if (!style) {
+    style = ownerDocument.createElement("style");
+    style.dataset.muscatRichTextStyle = "";
+    style.textContent = richTextStyles;
+    ownerDocument.head.append(style);
+  }
+  adoptedStyleReferences.set(ownerDocument, (adoptedStyleReferences.get(ownerDocument) ?? 0) + 1);
+  return () => {
+    const remaining = (adoptedStyleReferences.get(ownerDocument) ?? 1) - 1;
+    if (remaining > 0) {
+      adoptedStyleReferences.set(ownerDocument, remaining);
+      return;
+    }
+    adoptedStyleReferences.delete(ownerDocument);
+    style?.remove();
+  };
+}
+
+export function createRichTextController(
+  options: {
+    readonly onCommit: (nodeId: string, richContent: string) => void;
+    readonly onEditingChange: (editing: boolean) => void;
+  },
+  dependencies: RichTextControllerDependencies = {},
+): RichTextController {
   let session:
     | {
         nodeId: string;
@@ -32,6 +63,7 @@ export function createRichTextController(options: {
         editor: Editor;
         menu: RichTextMenu;
         disconnectOwnerDocument: () => void;
+        releaseStyles: () => void;
       }
     | undefined;
 
@@ -39,14 +71,18 @@ export function createRichTextController(options: {
     if (!session) return;
     const completed = session;
     session = undefined;
-    completed.disconnectOwnerDocument();
-    const currentHtml = serializeRichContent(completed.editor, completed.element);
-    completed.editor.destroy();
-    completed.menu.destroy();
-    completed.element.innerHTML = cancel ? completed.initialHtml : currentHtml;
-    if (!cancel && currentHtml !== completed.initialHtml)
-      options.onCommit(completed.nodeId, currentHtml);
-    options.onEditingChange(false);
+    try {
+      const currentHtml = serializeRichContent(completed.editor, completed.element);
+      completed.element.innerHTML = cancel ? completed.initialHtml : currentHtml;
+      if (!cancel && currentHtml !== completed.initialHtml)
+        options.onCommit(completed.nodeId, currentHtml);
+    } finally {
+      completed.disconnectOwnerDocument();
+      completed.editor.destroy();
+      completed.menu.destroy();
+      completed.releaseStyles();
+      options.onEditingChange(false);
+    }
   };
 
   return {
@@ -54,39 +90,64 @@ export function createRichTextController(options: {
       if (session) return;
       const ownerDocument = startOptions.element.ownerDocument;
       const safeInitialHtml = sanitizeRichContent(startOptions.initialHtml, ownerDocument);
+      let tiptap: Editor | undefined;
+      let menu: RichTextMenu | undefined;
+      let releaseStyles: () => void = () => undefined;
       startOptions.element.replaceChildren();
-      const tiptap = new Editor({
-        element: startOptions.element,
-        content: safeInitialHtml,
-        extensions: [
-          StarterKit.configure({ link: false, underline: false }),
-          Underline,
-          Link.configure({
-            openOnClick: false,
-            HTMLAttributes: { target: null, rel: null },
-            isAllowedUri: (url) => isSafeRichTextUrl(url),
+      try {
+        tiptap = (dependencies.createEditor ?? ((editorOptions) => new Editor(editorOptions)))({
+          element: startOptions.element,
+          content: safeInitialHtml,
+          extensions: [
+            StarterKit.configure({ link: false, underline: false }),
+            Underline,
+            Link.configure({
+              openOnClick: false,
+              HTMLAttributes: { target: null, rel: null },
+              isAllowedUri: (url) => isSafeRichTextUrl(url),
+            }),
+            TextAlign.configure({
+              types: ["paragraph"],
+              alignments: ["left", "center", "right"],
+            }),
+          ],
+        });
+        releaseStyles = adoptRichTextStyles(ownerDocument);
+        menu = createRichTextMenu(tiptap, ownerDocument);
+      } catch (error) {
+        menu?.destroy();
+        tiptap?.destroy();
+        releaseStyles();
+        startOptions.element.innerHTML = safeInitialHtml;
+        options.onEditingChange(false);
+        throw error;
+      }
+      try {
+        tiptap.registerPlugin(
+          BubbleMenuPlugin({
+            pluginKey: "muscatRichTextMenu",
+            editor: tiptap,
+            element: menu.element,
+            appendTo: () => ownerDocument.body,
+            shouldShow: ({ from, to }) => from !== to,
+            options: {
+              strategy: "fixed",
+              placement: "top",
+              offset: 8,
+              flip: true,
+              shift: true,
+              inline: true,
+            },
           }),
-          TextAlign.configure({ types: ["paragraph"], alignments: ["left", "center", "right"] }),
-        ],
-      });
-      const menu = createRichTextMenu(tiptap, ownerDocument);
-      tiptap.registerPlugin(
-        BubbleMenuPlugin({
-          pluginKey: "muscatRichTextMenu",
-          editor: tiptap,
-          element: menu.element,
-          appendTo: () => ownerDocument.body,
-          shouldShow: ({ from, to }) => from !== to,
-          options: {
-            strategy: "fixed",
-            placement: "top",
-            offset: 8,
-            flip: true,
-            shift: true,
-            inline: true,
-          },
-        }),
-      );
+        );
+      } catch (error) {
+        menu.destroy();
+        tiptap.destroy();
+        releaseStyles();
+        startOptions.element.innerHTML = safeInitialHtml;
+        options.onEditingChange(false);
+        throw error;
+      }
       const initialHtml = serializeRichContent(tiptap, startOptions.element);
       const isInsideSession = (target: EventTarget | null): boolean =>
         target instanceof ownerDocument.defaultView!.Node &&
@@ -111,6 +172,7 @@ export function createRichTextController(options: {
         initialHtml,
         editor: tiptap,
         menu,
+        releaseStyles,
         disconnectOwnerDocument() {
           if (!ownsDocumentEvents) return;
           ownerDocument.removeEventListener("pointerdown", handlePointerDown, { capture: true });
@@ -128,41 +190,52 @@ export function createRichTextController(options: {
   };
 }
 
-const phrasingContentHosts = new Set([
-  "ABBR",
-  "B",
-  "BUTTON",
-  "CITE",
-  "CODE",
-  "EM",
-  "H1",
-  "H2",
-  "H3",
-  "H4",
-  "H5",
-  "H6",
-  "I",
-  "KBD",
-  "LABEL",
-  "LEGEND",
-  "MARK",
-  "Q",
-  "S",
-  "SAMP",
-  "SMALL",
-  "SPAN",
-  "STRONG",
-  "SUB",
-  "SUP",
-  "TIME",
-  "U",
-  "VAR",
-]);
+const inlineRichTextHostSelector = [
+  "a",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "button",
+  "cite",
+  "code",
+  "data",
+  "dfn",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "i",
+  "kbd",
+  "label",
+  "legend",
+  "mark",
+  "meter",
+  "output",
+  "p",
+  "q",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "span",
+  "strong",
+  "sub",
+  "sup",
+  "time",
+  "u",
+  "var",
+].join(",");
 
 function serializeRichContent(editor: Editor, element: HTMLElement): string {
   const document = element.ownerDocument;
   const html = sanitizeRichContent(editor.getHTML(), document);
-  if (!phrasingContentHosts.has(element.tagName)) return html;
+  if (!element.matches(inlineRichTextHostSelector)) return html;
   const container = document.createElement("div");
   container.innerHTML = html;
   const paragraph = container.firstElementChild;

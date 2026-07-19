@@ -20,6 +20,7 @@ import {
 } from "@muscat/dom";
 import { createRichTextController } from "./rich-text-editor";
 import "./style.css";
+import "./rich-text.css";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("App root was not found");
@@ -90,6 +91,7 @@ let iframeRenderer: IframeRenderer | undefined;
 
 const richTextController = createRichTextController({
   onCommit(nodeId, richContent) {
+    if (!editor.getSnapshot().document.nodes[nodeId]) return;
     editor.dispatch(commands.setNodeRichContent({ nodeId, richContent }));
   },
   onEditingChange(isEditing) {

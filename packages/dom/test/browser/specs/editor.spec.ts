@@ -19,6 +19,22 @@ async function importSample(page: Page): Promise<void> {
   await expect(page.locator('iframe[title="Imported HTML document"]')).toBeVisible();
 }
 
+async function importHtml(page: Page, html: string): Promise<void> {
+  await page.goto(demoUrl);
+  await page.getByRole("button", { name: "Import HTML" }).click();
+  await page.getByLabel("HTML").fill(html);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.locator('iframe[title="Imported HTML document"]')).toBeVisible();
+}
+
+async function exportedHtml(page: Page): Promise<string> {
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export HTML" }).click();
+  const path = await (await downloadPromise).path();
+  if (!path) throw new Error("Exported HTML download is unavailable");
+  return readFile(path, "utf8");
+}
+
 async function expectVisibleFocusOutline(control: Locator): Promise<void> {
   const outline = await control.evaluate((element) => {
     const style = element.ownerDocument.defaultView!.getComputedStyle(element);
@@ -159,6 +175,98 @@ test("formats a selected range inside imported HTML", async ({ page }) => {
   const html = await readFile(path, "utf8");
   expect(html).toMatch(/<h2[^>]*><em>Editable target<\/em><\/h2>/);
   expect(html).not.toMatch(/<h2[^>]*><p>/);
+});
+
+for (const host of ["p", "a"] as const) {
+  test(`keeps formatting inline when editing an imported leaf <${host}>`, async ({ page }) => {
+    const attributes = host === "a" ? ' href="/docs"' : "";
+    await importHtml(page, `<${host}${attributes}>Leaf content</${host}>`);
+    const target = page
+      .frameLocator("iframe")
+      .locator(`${host}[data-muscat-node-id]`)
+      .filter({ hasText: "Leaf content" });
+    await target.dblclick();
+    await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    await page
+      .frameLocator("iframe")
+      .getByRole("toolbar", { name: "Text formatting" })
+      .getByRole("button", { name: "Bold" })
+      .click();
+    await page.locator(".stage-heading").click();
+
+    await expect(target.locator(":scope > p")).toHaveCount(0);
+    await expect(target.locator(":scope > strong")).toHaveText("Leaf content");
+    await expect(target).toHaveText("Leaf content");
+    const html = await exportedHtml(page);
+    expect(html).not.toMatch(new RegExp(`<${host}[^>]*>\\s*<p>`));
+    expect(html.match(/Leaf content/g)).toHaveLength(1);
+  });
+}
+
+test("cancels an imported paragraph edit without adding wrappers or duplicate content", async ({
+  page,
+}) => {
+  await importHtml(page, "<p>Original paragraph</p>");
+  const target = page.frameLocator("iframe").locator("p[data-muscat-node-id]");
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await target.pressSequentially("Cancelled change");
+  await target.press("Escape");
+
+  await expect(target).toHaveText("Original paragraph");
+  await expect(target.locator(":scope > p")).toHaveCount(0);
+  const html = await exportedHtml(page);
+  expect(html.match(/Original paragraph/g)).toHaveLength(1);
+  expect(html).not.toMatch(/<p[^>]*>\s*<p>/);
+});
+
+test("adopts rich text styles into an iframe and removes them after editing", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await importHtml(page, '<main><p style="width:180px">Styled target</p></main>');
+  const frame = page.frameLocator("iframe");
+  const target = frame.locator("p[data-muscat-node-id]").filter({ hasText: "Styled target" });
+  await target.dblclick();
+  await target.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  const menu = frame.getByRole("toolbar", { name: "Text formatting" });
+  const bold = menu.getByRole("button", { name: "Bold" });
+
+  await expect(menu).toHaveCSS("background-color", "rgb(37, 37, 37)");
+  await expect(bold).toHaveCSS("width", "32px");
+  await expect(bold).toHaveCSS("height", "32px");
+  await bold.focus();
+  await expectVisibleFocusOutline(bold);
+  await expectReadableTextContrast(bold);
+  const bounds = await menu.boundingBox();
+  if (!bounds) throw new Error("Iframe toolbar is not visible");
+  const frameViewportWidth = await menu.evaluate(
+    (element) => element.ownerDocument.documentElement.clientWidth,
+  );
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(frameViewportWidth);
+
+  await page.keyboard.press("Escape");
+  await expect(frame.locator("style[data-muscat-rich-text-style]")).toHaveCount(0);
+  await target.dblclick();
+  await expect(frame.locator("style[data-muscat-rich-text-style]")).toHaveCount(1);
+  await target.press("Escape");
+});
+
+test("cleans up when the active imported node is removed", async ({ page }) => {
+  await importHtml(page, "<p>Removed while editing</p>");
+  const frame = page.frameLocator("iframe");
+  const target = frame.getByText("Removed while editing", { exact: true });
+  await target.dblclick();
+  await expect(page.locator("[data-canvas]")).toHaveClass(/is-rich-text-editing/);
+
+  await page
+    .getByRole("button", { name: "Undo" })
+    .evaluate((button: HTMLButtonElement) => button.click());
+
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toHaveCount(0);
+  await expect(page.locator('iframe[title="Imported HTML document"]')).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
 });
 
 test("commits an iframe edit on an outside iframe pointer without selecting it", async ({
