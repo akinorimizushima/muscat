@@ -13,9 +13,11 @@ import {
 } from "@muscat/core";
 import {
   createDomNode,
+  createElementDeletionController,
   createIframeRenderer,
   exportHtml,
   importHtml,
+  isTextEntryTarget,
   type IframeRenderer,
 } from "@muscat/dom";
 import { createRichTextController } from "@muscat/rich-text";
@@ -98,6 +100,14 @@ const richTextController = createRichTextController({
     iframeRenderer?.setEditing(isEditing);
     updateSelectionOverlay();
   },
+});
+const elementDeletionController = createElementDeletionController({
+  editor,
+  getSelectedNodeId: () => selectedNodeId,
+  clearSelection: () => {
+    selectedNodeId = undefined;
+  },
+  isEditing: () => richTextController.isEditing(),
 });
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -213,6 +223,7 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
       selectedNodeId = nodeId;
       updateSelectionOverlay();
     },
+    onKeyDown: elementDeletionController.handleKeyDown,
     onLoad() {
       iframeRenderer?.syncNodes(editor.getSnapshot().document.nodes);
       updateSelectionOverlay();
@@ -390,19 +401,14 @@ document.addEventListener("focusin", (event) => {
   richTextController.finish(false);
 });
 document.addEventListener("keydown", (event) => {
+  elementDeletionController.handleKeyDown(event);
   if (event.defaultPrevented || event.isComposing || event.altKey) return;
   if (richTextController.isEditing() && event.key === "Escape") {
     event.preventDefault();
     richTextController.finish(true);
     return;
   }
-  const target = event.target;
-  if (
-    target instanceof Element &&
-    (target.closest("input, textarea, select") ||
-      (target instanceof HTMLElement && target.isContentEditable))
-  )
-    return;
+  if (isTextEntryTarget(event.target)) return;
   if (!event.metaKey && !event.ctrlKey) return;
 
   const key = event.key.toLowerCase();
