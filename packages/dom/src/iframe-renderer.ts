@@ -198,6 +198,9 @@ export function createIframeRenderer(
         const nodeId = element.dataset.muscatNodeId;
         if (nodeId && !nodes[nodeId]) element.remove();
       }
+      const root = Object.values(nodes).find((node) => node.parentId === null);
+      if (root && !hasManagedChildren(frameDocument.body, root, nodes))
+        restoreManagedChildren(frameDocument.body, root, nodes);
       for (const node of Object.values(nodes)) {
         if (node.type === "#text") {
           const textNode = findTextNode(frameDocument, node.id);

@@ -36,6 +36,8 @@ The iframe renderer will add and remove its keydown listener together with its e
 
 After an imported node is removed, rendering must no longer show that node. Existing iframe synchronization behavior will be exercised by the browser test; if it does not remove missing nodes, synchronization will be minimally extended to do so based on managed node identifiers.
 
+The iframe body represents the editor document root. When Undo restores a deleted top-level node, synchronization will compare the root's children with the body's managed children and rebuild the managed top-level subtree only when an expected child is missing. This preserves model order and allows a subsequent Redo to remove the restored element visibly without reloading the iframe.
+
 ## Undo and Selection
 
 Deletion is dispatched through the editor's existing transaction history. Undo restores the removed subtree in its original position. Undo does not automatically reselect the restored node; selection remains empty until the user selects an element again.

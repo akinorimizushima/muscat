@@ -356,6 +356,27 @@ test("deletes and restores a selected imported element from the keyboard", async
   await expect(retained).toBeVisible();
 });
 
+test("undoes and redoes deletion of a top-level imported section", async ({ page }) => {
+  const samplePath = new URL("../../../../../examples/import-sample.html", import.meta.url);
+  await importHtml(page, await readFile(samplePath, "utf8"));
+  const frame = page.frameLocator("iframe");
+  const section = frame.locator("section");
+  await section.click({ position: { x: 6, y: 6 } });
+  await expect(page.locator("[data-selection-overlay] .selection-label")).toHaveText("section");
+
+  await section.press("Delete");
+  await expect(page.locator("[data-status]")).toHaveText("2 elements");
+  await expect(section).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.locator("[data-status]")).toHaveText("3 elements");
+  await expect(section).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Redo" }).click();
+  await expect(page.locator("[data-status]")).toHaveText("2 elements");
+  await expect(section).toHaveCount(0);
+});
+
 test("leaves deletion keys to imported rich-text editing", async ({ page }) => {
   await importHtml(page, "<p>Editable</p>");
   const target = page.frameLocator("iframe").getByText("Editable", { exact: true });
