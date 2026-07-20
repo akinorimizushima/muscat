@@ -194,9 +194,7 @@ export function createIframeRenderer(
     syncNodes(nodes) {
       const frameDocument = iframe.contentDocument;
       if (!frameDocument) return;
-      for (const element of frameDocument.querySelectorAll<HTMLElement>(
-        "[data-muscat-node-id]",
-      )) {
+      for (const element of frameDocument.querySelectorAll<HTMLElement>("[data-muscat-node-id]")) {
         const nodeId = element.dataset.muscatNodeId;
         if (nodeId && !nodes[nodeId]) element.remove();
       }

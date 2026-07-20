@@ -29,10 +29,12 @@
 ### Task 1: Regular canvas keyboard deletion
 
 **Files:**
+
 - Modify: `apps/demo/src/main.ts` near the document `keydown` listener
 - Test: `packages/dom/test/browser/specs/keyboard-shortcuts.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `selectedNodeId: string | undefined`, `editor.can(command)`, `editor.dispatch(command)`, `commands.removeNode({ nodeId })`
 - Produces: `handleEditorKeyDown(event: KeyboardEvent): void`, shared later by iframe event forwarding
 
@@ -96,7 +98,7 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
     target instanceof Element &&
     Boolean(
       target.closest("input, textarea, select") ||
-        (target instanceof HTMLElement && target.isContentEditable),
+      (target instanceof HTMLElement && target.isContentEditable),
     )
   );
 }
@@ -145,11 +147,13 @@ git commit -m "feat: delete selected canvas elements by keyboard"
 ### Task 2: Imported iframe keyboard deletion
 
 **Files:**
+
 - Modify: `packages/dom/src/iframe-renderer.ts`
 - Modify: `apps/demo/src/main.ts` in `createIframeRenderer` options
 - Test: `packages/dom/test/browser/specs/editor.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `handleEditorKeyDown(event: KeyboardEvent): void` from Task 1
 - Produces: optional `IframeRendererOptions.onKeyDown?: (event: KeyboardEvent) => void`; `syncNodes` removes stale managed elements
 
@@ -251,9 +255,11 @@ git commit -m "feat: delete selected imported elements by keyboard"
 ### Task 3: Full verification
 
 **Files:**
+
 - Verify: repository formatting, lint, types, unit tests, and browser tests
 
 **Interfaces:**
+
 - Consumes: completed Tasks 1 and 2
 - Produces: verified repository state
 

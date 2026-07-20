@@ -339,10 +339,7 @@ test("cleans up when the active imported node is removed", async ({ page }) => {
 });
 
 test("deletes and restores a selected imported element from the keyboard", async ({ page }) => {
-  await importHtml(
-    page,
-    "<section><div>Remove me</div><p>Keep me</p></section>",
-  );
+  await importHtml(page, "<section><div>Remove me</div><p>Keep me</p></section>");
   const frame = page.frameLocator("iframe");
   const removable = frame.locator("section > div");
   const retained = frame.locator("section > p");
