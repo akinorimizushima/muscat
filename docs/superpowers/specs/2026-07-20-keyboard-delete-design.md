@@ -13,9 +13,9 @@ Allow users to remove the currently selected editor element with either Backspac
 
 ## Architecture
 
-The demo application owns selection and command dispatch, so it will also own the deletion policy. A shared keyboard handler will decide whether an event represents an editor deletion and, when valid, dispatch `commands.removeNode` for `selectedNodeId`.
+The DOM package owns the keyboard-to-editor-command policy because it depends on `KeyboardEvent`, editable DOM targets, iframe event forwarding, and `preventDefault()`. It will expose an element-deletion controller that receives the editor plus callbacks for reading and clearing application-owned selection and detecting application-owned editing state.
 
-The parent document can call this handler directly. Keyboard events originating in an iframe do not bubble to the parent document, so `createIframeRenderer` will expose a small keyboard-event callback in `IframeRendererOptions`. The renderer will listen on its connected frame document and forward events to the demo without embedding editor-specific deletion behavior in the DOM package.
+The demo remains responsible for composing features. It creates the controller with `getSelectedNodeId`, `clearSelection`, and `isEditing`, then passes the same controller handler to the parent document and iframe renderer. Keyboard events originating in an iframe do not bubble to the parent document, so `createIframeRenderer` exposes a small keyboard-event callback in `IframeRendererOptions`.
 
 ## Event Rules
 

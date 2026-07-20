@@ -4,7 +4,7 @@
 
 **Goal:** Remove the selected regular or imported editor element with Backspace or Delete without intercepting text editing.
 
-**Architecture:** The demo owns a single `handleEditorKeyDown` policy function because it owns selection and editor command dispatch. The parent document invokes it directly, while the iframe renderer forwards frame-document keyboard events through an optional callback; the renderer also removes managed iframe elements whose nodes no longer exist.
+**Architecture:** The DOM package owns an element-deletion keyboard controller because the policy depends on DOM event semantics. The demo supplies callbacks for its selection and rich-text state, invokes the controller from the parent document, and passes the same handler to the iframe renderer; the renderer also removes managed iframe elements whose nodes no longer exist.
 
 **Tech Stack:** TypeScript 7, DOM APIs, `@muscat/core` commands, Playwright 1.55, pnpm 11
 
@@ -21,7 +21,9 @@
 
 ## File Structure
 
-- `apps/demo/src/main.ts`: owns editor keyboard policy, selection clearing, and command dispatch.
+- `packages/dom/src/keyboard.ts`: owns editable-target detection and keyboard-to-remove-command policy.
+- `packages/dom/src/keyboard.test.ts`: unit-tests the controller independently from the demo.
+- `apps/demo/src/main.ts`: composes the controller with demo-owned selection and rich-text state.
 - `packages/dom/src/iframe-renderer.ts`: forwards iframe keydown events and keeps managed iframe DOM synchronized with node removal.
 - `packages/dom/test/browser/specs/keyboard-shortcuts.spec.ts`: verifies regular-element deletion, selection clearing, undo, and protected form-control behavior.
 - `packages/dom/test/browser/specs/editor.spec.ts`: verifies imported-element deletion and rich-text protection inside the iframe.
