@@ -338,6 +338,38 @@ test("cleans up when the active imported node is removed", async ({ page }) => {
   await expect(page.locator("[data-canvas]")).not.toHaveClass(/is-rich-text-editing/);
 });
 
+test("deletes and restores a selected imported element from the keyboard", async ({ page }) => {
+  await importHtml(
+    page,
+    "<section><div>Remove me</div><p>Keep me</p></section>",
+  );
+  const frame = page.frameLocator("iframe");
+  const removable = frame.locator("section > div");
+  const retained = frame.locator("section > p");
+  await removable.click();
+
+  await removable.press("Delete");
+
+  await expect(removable).toHaveCount(0);
+  await expect(retained).toBeVisible();
+  await expect(page.locator("[data-selection-overlay]")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(removable).toBeVisible();
+  await expect(retained).toBeVisible();
+});
+
+test("leaves deletion keys to imported rich-text editing", async ({ page }) => {
+  await importHtml(page, "<p>Editable</p>");
+  const target = page.frameLocator("iframe").getByText("Editable", { exact: true });
+  await target.dblclick();
+
+  await target.press("Delete");
+
+  await expect(page.locator("[data-status]")).toHaveText("1 element");
+  await expect(page.locator("[data-canvas]")).toHaveClass(/is-rich-text-editing/);
+});
+
 test("commits an iframe edit on an outside iframe pointer without selecting it", async ({
   page,
 }) => {

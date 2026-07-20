@@ -213,6 +213,7 @@ function renderIframe(nodes: Readonly<Record<string, EditorNode>>): void {
       selectedNodeId = nodeId;
       updateSelectionOverlay();
     },
+    onKeyDown: handleEditorKeyDown,
     onLoad() {
       iframeRenderer?.syncNodes(editor.getSnapshot().document.nodes);
       updateSelectionOverlay();

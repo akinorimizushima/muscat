@@ -9,6 +9,7 @@ export interface IframeEditRequest {
 
 export interface IframeRendererOptions {
   readonly onSelect?: (nodeId: string) => void;
+  readonly onKeyDown?: (event: KeyboardEvent) => void;
   readonly onLoad?: () => void;
   readonly onViewportChange?: () => void;
   readonly onDragPreview?: (nodeId: string, deltaX: number, deltaY: number) => void;
@@ -141,6 +142,7 @@ export function createIframeRenderer(
       editingElement = element;
       options.onEdit?.({ nodeId, element, initialHtml: element.innerHTML });
     };
+    const handleKeyDown = (event: KeyboardEvent): void => options.onKeyDown?.(event);
     const handleViewportChange = (): void => options.onViewportChange?.();
     frameDocument.addEventListener("pointerdown", handlePointerDown, { capture: true });
     frameDocument.addEventListener("pointermove", handlePointerMove, { capture: true });
@@ -148,6 +150,7 @@ export function createIframeRenderer(
     frameDocument.addEventListener("pointercancel", handlePointerUp, { capture: true });
     frameDocument.addEventListener("click", handleClick, { capture: true });
     frameDocument.addEventListener("dblclick", handleDoubleClick, { capture: true });
+    frameDocument.addEventListener("keydown", handleKeyDown);
     frameDocument.addEventListener("scroll", handleViewportChange, { capture: true });
     iframe.contentWindow?.addEventListener("resize", handleViewportChange);
     disconnectDocument = () => {
@@ -157,6 +160,7 @@ export function createIframeRenderer(
       frameDocument.removeEventListener("pointercancel", handlePointerUp, { capture: true });
       frameDocument.removeEventListener("click", handleClick, { capture: true });
       frameDocument.removeEventListener("dblclick", handleDoubleClick, { capture: true });
+      frameDocument.removeEventListener("keydown", handleKeyDown);
       frameDocument.removeEventListener("scroll", handleViewportChange, { capture: true });
       iframe.contentWindow?.removeEventListener("resize", handleViewportChange);
     };
@@ -190,6 +194,12 @@ export function createIframeRenderer(
     syncNodes(nodes) {
       const frameDocument = iframe.contentDocument;
       if (!frameDocument) return;
+      for (const element of frameDocument.querySelectorAll<HTMLElement>(
+        "[data-muscat-node-id]",
+      )) {
+        const nodeId = element.dataset.muscatNodeId;
+        if (nodeId && !nodes[nodeId]) element.remove();
+      }
       for (const node of Object.values(nodes)) {
         if (node.type === "#text") {
           const textNode = findTextNode(frameDocument, node.id);
